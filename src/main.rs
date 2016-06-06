@@ -1,23 +1,53 @@
 extern crate sdl2;
 
 use sdl2::event::Event;
-use sdl2::pixels::Color;
-use sdl2::rect::Point;
+use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::Renderer;
+use sdl2::render::Texture;
+use std::cmp;
 use std::f32;
 use std::time::SystemTime;
 
-fn draw(renderer: &mut Renderer, time: f32) {
-    for x in 0..640 {
-        for y in 0..480 {
-            let r = x/4;
-            let g = y/4;
-            let b = (((x as f32) + time*10.0)/20.0).cos()*127.0 + 127.0;
-            renderer.set_draw_color(Color::RGB(r as u8, g as u8, b as u8));
-            renderer.draw_point(Point::new(x as i32, y as i32)).unwrap();
+const WIDTH: u32 = 640;
+const HEIGHT: u32 = 480;
+
+struct Plasma {
+    texture: Texture,
+    pixel_data: Vec<u8>,
+    time: f32
+}
+
+impl Plasma {
+    fn new(renderer: &mut Renderer) -> Plasma {
+        Plasma {
+            texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, 640, 480).unwrap(),
+            pixel_data: vec![0; (WIDTH*HEIGHT*3) as usize],
+            time: 0.0
         }
     }
-    renderer.present();
+
+    fn plot(&mut self, x: u32, y: u32, red: u8, green: u8, blue: u8) {
+        let offset = ((x + y*WIDTH)*3) as usize;
+        self.pixel_data[offset] = red;
+        self.pixel_data[offset + 1] = green;
+        self.pixel_data[offset + 2] = blue;
+    }
+
+    fn update(&mut self) {
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                let r = x/4;
+                let g = y/4;
+                let b = (((x as f32) + self.time*10.0)/20.0).cos()*127.0 + 127.0;
+                self.plot(x, y, r as u8, g as u8, b as u8);
+            }
+        }
+        self.texture.update(None, &self.pixel_data[..], (WIDTH*3) as usize).unwrap(); 
+    }
+
+    fn add_time(&mut self, time: f32) {
+        self.time += time;
+    }
 }
 
 fn main() {
@@ -27,14 +57,17 @@ fn main() {
     let window = video.window("plasma", 640, 480).build().unwrap();
 
     let mut renderer = window.renderer().build().unwrap();
-    let mut time = 0.0;
+    let mut plasma = Plasma::new(&mut renderer);
 
     let mut running = true;
     let mut event_pump = sdl.event_pump().unwrap();
     while running {
         let timestamp = SystemTime::now();
 
-        draw(&mut renderer, time);
+        // Draw plasma, process events
+        plasma.update();
+        renderer.copy(&plasma.texture, None, None);
+        renderer.present();
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} => {running = false; break},
@@ -42,14 +75,15 @@ fn main() {
             }
         }
 
+        // Manage time
         let duration = timestamp.elapsed().unwrap();
-        let millis = (duration.subsec_nanos() as u64)/1000000 + duration.as_secs()*1000;
-        let delay = 100;
-        if delay < millis {
-            println!("Frame delay is {} but actual time taken is {}", delay, millis);
+        let target_ms = 100;
+        let actual_ms = (duration.subsec_nanos() as u64)/1000000 + duration.as_secs()*1000;
+        if actual_ms > target_ms {
+            println!("Target frame delay is {} but actual time taken is {}", target_ms, actual_ms);
         } else {
-            std::thread::sleep(std::time::Duration::from_millis(delay - millis));
+            std::thread::sleep(std::time::Duration::from_millis(target_ms - actual_ms));
         }
-        time += (delay as f32)/1000.0;
+        plasma.add_time((cmp::max(target_ms, actual_ms) as f32)/1000.0);
     }
 }
