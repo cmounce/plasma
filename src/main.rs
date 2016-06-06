@@ -33,12 +33,26 @@ impl Plasma {
         self.pixel_data[offset + 2] = blue;
     }
 
+    fn calculate_color(&mut self, x: f32, y: f32) -> (u8, u8, u8) {
+        let mut value = 0.0;
+        value += (x/23.0 + self.time).cos();
+        value += (x/13.0 + (y/17.0)*(self.time/2.0).cos() ).cos();
+        let dx = (self.time/1.9).cos()*200.0 + (WIDTH as f32)/2.0 - x;
+        let dy = (self.time/3.1).sin()*150.0 + (HEIGHT as f32)/2.0 - y;
+        value += ((dx*dx + dy*dy).sqrt()/29.0 + self.time).cos();
+
+        // convert to value between 0 and 1
+        value = value.fract().abs();
+        value = if value < 0.5 { value*2.0 } else { (1.0 - value)*2.0 };
+
+        let byte = (value * 255.0).round() as u8;
+        (byte, byte, byte)
+    }
+
     fn update(&mut self, renderer: &mut Renderer) {
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
-                let r = x/4;
-                let g = y/4;
-                let b = (((x as f32) + self.time*10.0)/20.0).cos()*127.0 + 127.0;
+                let (r, g, b) = self.calculate_color(x as f32, y as f32);
                 self.plot(x, y, r as u8, g as u8, b as u8);
             }
         }
