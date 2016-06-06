@@ -33,7 +33,7 @@ impl Plasma {
         self.pixel_data[offset + 2] = blue;
     }
 
-    fn update(&mut self) {
+    fn update(&mut self, renderer: &mut Renderer) {
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
                 let r = x/4;
@@ -43,6 +43,8 @@ impl Plasma {
             }
         }
         self.texture.update(None, &self.pixel_data[..], (WIDTH*3) as usize).unwrap(); 
+        renderer.copy(&self.texture, None, None);
+        renderer.present();
     }
 
     fn add_time(&mut self, time: f32) {
@@ -65,9 +67,7 @@ fn main() {
         let timestamp = SystemTime::now();
 
         // Draw plasma, process events
-        plasma.update();
-        renderer.copy(&plasma.texture, None, None);
-        renderer.present();
+        plasma.update(&mut renderer);
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} => {running = false; break},
