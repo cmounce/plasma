@@ -6,10 +6,33 @@ use sdl2::render::Renderer;
 use sdl2::render::Texture;
 use std::cmp;
 use std::f32;
+use std::f32::consts::PI;
 use std::time::SystemTime;
 
 const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
+
+trait FastMath<F> {
+    fn fcos(&self) -> F;
+    fn fsin(&self) -> F;
+}
+
+impl FastMath<f32> for f32 {
+    fn fsin(&self) -> f32 {
+        let x = self/PI;
+        let fract = if x > 0.0 { x.fract() } else { 1.0 + x.fract() };
+        let curve = (-4.0*fract + 4.0)*fract; // f(x) = -4x^2 + 4x, upside-down parabola
+        if (x.floor() as u32) & 1 == 1 {
+            return -curve;
+        } else {
+            return curve;
+        }
+    }
+
+    fn fcos(&self) -> f32 {
+        return (self + 0.5*PI).fsin();
+    }
+}
 
 struct Plasma {
     texture: Texture,
@@ -35,11 +58,11 @@ impl Plasma {
 
     fn calculate_color(&mut self, x: f32, y: f32) -> (u8, u8, u8) {
         let mut value = 0.0;
-        value += (x/23.0 + self.time).cos();
-        value += (x/13.0 + (y/17.0)*(self.time/2.0).cos() ).cos();
-        let dx = (self.time/1.9).cos()*200.0 + (WIDTH as f32)/2.0 - x;
-        let dy = (self.time/3.1).sin()*150.0 + (HEIGHT as f32)/2.0 - y;
-        value += ((dx*dx + dy*dy).sqrt()/29.0 + self.time).cos();
+        value += (x/23.0 + self.time).fcos();
+        value += (x/13.0 + (y/17.0)*(self.time/2.0).fcos() ).fcos();
+        let dx = (self.time/1.9).fcos()*200.0 + (WIDTH as f32)/2.0 - x;
+        let dy = (self.time/3.1).fsin()*150.0 + (HEIGHT as f32)/2.0 - y;
+        value += ((dx*dx + dy*dy).sqrt()/29.0 + self.time).fcos();
 
         // convert to value between 0 and 1
         value = value.fract().abs();
@@ -56,7 +79,7 @@ impl Plasma {
                 self.plot(x, y, r as u8, g as u8, b as u8);
             }
         }
-        self.texture.update(None, &self.pixel_data[..], (WIDTH*3) as usize).unwrap(); 
+        self.texture.update(None, &self.pixel_data[..], (WIDTH*3) as usize).unwrap();
         renderer.copy(&self.texture, None, None);
         renderer.present();
     }
@@ -77,6 +100,8 @@ fn main() {
 
     let mut running = true;
     let mut event_pump = sdl.event_pump().unwrap();
+    let mut avg_render_time = 0.0;
+    let mut avg_render_time_count = 0;
     while running {
         let timestamp = SystemTime::now();
 
@@ -93,6 +118,8 @@ fn main() {
         let duration = timestamp.elapsed().unwrap();
         let target_ms = 100;
         let actual_ms = (duration.subsec_nanos() as u64)/1000000 + duration.as_secs()*1000;
+        avg_render_time += actual_ms as f32;
+        avg_render_time_count += 1;
         if actual_ms > target_ms {
             println!("Target frame delay is {} but actual time taken is {}", target_ms, actual_ms);
         } else {
@@ -100,4 +127,5 @@ fn main() {
         }
         plasma.add_time((cmp::max(target_ms, actual_ms) as f32)/1000.0);
     }
+    println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
 }
