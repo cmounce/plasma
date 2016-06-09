@@ -103,7 +103,7 @@ impl Plasma {
         value = if value < 0.5 { value*2.0 } else { (1.0 - value)*2.0 };
 
         let byte = (value * 255.0).round() as u8;
-        (byte, byte, byte)
+        (byte/4, byte/4 + 32, byte/2 + 64)
     }
 
     fn update(&mut self, renderer: &mut Renderer) {
