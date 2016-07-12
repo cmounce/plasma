@@ -90,15 +90,20 @@ impl Plasma {
         self.pixel_data[offset + 2] = blue;
     }
 
-    fn calculate_color(&mut self, x: f32, y: f32) -> (u8, u8, u8) {
+    fn calculate_value(&self, x: f32, y: f32) -> f32 {
         let mut value = 0.0;
         value += (x/23.0 + self.time).xwave();
         value += (x/13.0 + (y/17.0)*(self.time/2.0).xwave() ).xwave();
         let dx = (self.time/1.9).xwave()*200.0 + (WIDTH as f32)/2.0 - x;
         let dy = (self.time/3.1).ywave()*150.0 + (HEIGHT as f32)/2.0 - y;
         value += ((dx*dx + dy*dy).sqrt()/29.0 + self.time).xwave();
+        return value;
+    }
 
-        // convert to value between 0 and 1
+    fn calculate_color(&self, x: f32, y: f32) -> (u8, u8, u8) {
+        let mut value = self.calculate_value(x, y);
+
+        // scale value between 0 and 1
         value = value.fract().abs();
         value = if value < 0.5 { value*2.0 } else { (1.0 - value)*2.0 };
 
