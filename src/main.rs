@@ -23,7 +23,7 @@ struct Plasma {
 impl Plasma {
     fn new(renderer: &mut Renderer) -> Plasma {
         Plasma {
-            texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, 640, 480).unwrap(),
+            texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, WIDTH, HEIGHT).unwrap(),
             pixel_data: vec![0; (WIDTH*HEIGHT*3) as usize],
             time: 0.0
         }
@@ -78,7 +78,7 @@ fn main() {
     println!("Hello, world!");
     let sdl = sdl2::init().unwrap();
     let video = sdl.video().unwrap();
-    let window = video.window("plasma", 640, 480).build().unwrap();
+    let window = video.window("plasma", WIDTH, HEIGHT).build().unwrap();
 
     let mut renderer = window.renderer().build().unwrap();
     let mut plasma = Plasma::new(&mut renderer);
