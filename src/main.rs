@@ -38,11 +38,11 @@ impl Plasma {
 
     fn calculate_value(&self, x: f32, y: f32) -> f32 {
         let mut value = 0.0;
-        value += (x/23.0 + self.time).xwave();
-        value += (x/13.0 + (y/17.0)*(self.time/2.0).xwave() ).xwave();
-        let dx = (self.time/1.9).xwave()*200.0 + (WIDTH as f32)/2.0 - x;
-        let dy = (self.time/3.1).ywave()*150.0 + (HEIGHT as f32)/2.0 - y;
-        value += ((dx*dx + dy*dy).sqrt()/29.0 + self.time).xwave();
+        value += ((x/23.0 + self.time)/10.0).wave();
+        value += ((x/13.0 + (y/17.0)*(self.time/20.0).wave() )/10.0).wave();
+        let dx = (self.time/19.0).wave()*200.0 + (WIDTH as f32)/2.0 - x;
+        let dy = (self.time/31.0 + 0.5).wave()*150.0 + (HEIGHT as f32)/2.0 - y;
+        value += ((dx*dx + dy*dy).sqrt()/290.0 + self.time/10.0).wave();
         return value;
     }
 

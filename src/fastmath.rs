@@ -2,8 +2,6 @@ use std::f32;
 
 pub trait FastMath<F> {
     fn wave(&self) -> F;
-    fn xwave(&self) -> F;
-    fn ywave(&self) -> F;
 }
 
 impl FastMath<f32> for f32 {
@@ -26,14 +24,6 @@ impl FastMath<f32> for f32 {
          * Having one x and one x.abs() flips the parabola upside-down when x is negative.
          */
         x * x.abs().mul_add(16.0, -8.0)
-    }
-
-    fn xwave(&self) -> f32 {
-        self.mul_add(0.1, 0.25).wave()
-    }
-
-    fn ywave(&self) -> f32 {
-        (self*0.1).wave()
     }
 }
 
