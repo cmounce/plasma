@@ -37,11 +37,14 @@ impl Plasma {
     }
 
     fn calculate_value(&self, x: f32, y: f32) -> f32 {
+        let x_adj = x*200.0;
+        let y_adj = y*200.0;
+
         let mut value = 0.0;
-        value += ((x/23.0 + self.time)/10.0).wave();
-        value += ((x/13.0 + (y/17.0)*(self.time/20.0).wave() )/10.0).wave();
-        let dx = (self.time/19.0).wave()*200.0 + (WIDTH as f32)/2.0 - x;
-        let dy = (self.time/31.0 + 0.5).wave()*150.0 + (HEIGHT as f32)/2.0 - y;
+        value += ((x_adj/23.0 + self.time)/10.0).wave();
+        value += ((x_adj/13.0 + (y_adj/17.0)*(self.time/20.0).wave() )/10.0).wave();
+        let dx = (self.time/19.0).wave()*75.0 + 100.0 - x_adj;
+        let dy = (self.time/31.0 + 0.5).wave()*75.0 + 100.0 - y_adj;
         value += ((dx*dx + dy*dy).sqrt()/290.0 + self.time/10.0).wave();
         return value;
     }
@@ -58,9 +61,10 @@ impl Plasma {
     }
 
     fn update(&mut self, renderer: &mut Renderer) {
+        let scale = 1.0/((WIDTH as f32).min(HEIGHT as f32));
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
-                let (r, g, b) = self.calculate_color(x as f32, y as f32);
+                let (r, g, b) = self.calculate_color((x as f32)*scale, (y as f32)*scale);
                 self.plot(x, y, r as u8, g as u8, b as u8);
             }
         }
