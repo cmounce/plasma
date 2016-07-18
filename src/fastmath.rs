@@ -32,7 +32,7 @@ macro_rules! assert_feq {
         {
             let a:f32 = $a;
             let b:f32 = $b;
-            assert!(a.abs_sub(b) < 0.01, "assertion failed: {} != {}", a, b);
+            assert!((a - b).abs() < 0.01, "assertion failed: {} != {}", a, b);
         }
     );
 }
