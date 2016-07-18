@@ -49,15 +49,15 @@ impl Plasma {
         return value;
     }
 
-    fn calculate_color(&self, x: f32, y: f32) -> (u8, u8, u8) {
-        let mut value = self.calculate_value(x, y);
-
-        // scale value between 0 and 1
-        value = value.fract().abs();
-        value = if value < 0.5 { value*2.0 } else { (1.0 - value)*2.0 };
-
-        let byte = (value * 255.0).round() as u8;
+    fn value_to_color(&self, value: f32) -> (u8, u8, u8) {
+        let value_adj = value - value.floor();
+        let brightness = (value_adj - 0.5).abs()*2.0;
+        let byte = (brightness*255.0).round() as u8;
         (byte/4, byte/4 + 32, byte/2 + 64)
+    }
+
+    fn calculate_color(&self, x: f32, y: f32) -> (u8, u8, u8) {
+        self.value_to_color(self.calculate_value(x, y))
     }
 
     fn update(&mut self, renderer: &mut Renderer) {
