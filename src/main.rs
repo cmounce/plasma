@@ -1,8 +1,10 @@
 extern crate sdl2;
 
 mod fastmath;
+mod colormapper;
 
 use fastmath::FastMath;
+use colormapper::ColorMapper;
 use sdl2::event::Event;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::Renderer;
@@ -15,6 +17,7 @@ const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
 
 struct Plasma {
+    color_mapper: ColorMapper,
     texture: Texture,
     pixel_data: Vec<u8>,
     time: f32
@@ -23,6 +26,7 @@ struct Plasma {
 impl Plasma {
     fn new(renderer: &mut Renderer) -> Plasma {
         Plasma {
+            color_mapper: ColorMapper::new(),
             texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, WIDTH, HEIGHT).unwrap(),
             pixel_data: vec![0; (WIDTH*HEIGHT*3) as usize],
             time: 0.0
@@ -49,15 +53,8 @@ impl Plasma {
         return value;
     }
 
-    fn value_to_color(&self, value: f32) -> (u8, u8, u8) {
-        let value_adj = value - value.floor();
-        let brightness = (value_adj - 0.5).abs()*2.0;
-        let byte = (brightness*255.0).round() as u8;
-        (byte/4, byte/4 + 32, byte/2 + 64)
-    }
-
     fn calculate_color(&self, x: f32, y: f32) -> (u8, u8, u8) {
-        self.value_to_color(self.calculate_value(x, y))
+        self.color_mapper.convert(self.calculate_value(x, y))
     }
 
     fn update(&mut self, renderer: &mut Renderer) {
