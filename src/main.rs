@@ -4,6 +4,7 @@ mod fastmath;
 mod colormapper;
 
 use fastmath::FastMath;
+use colormapper::Color;
 use colormapper::ColorMapper;
 use sdl2::event::Event;
 use sdl2::pixels::PixelFormatEnum;
@@ -26,7 +27,10 @@ struct Plasma {
 impl Plasma {
     fn new(renderer: &mut Renderer) -> Plasma {
         Plasma {
-            color_mapper: ColorMapper::new(),
+            color_mapper: ColorMapper::new(
+                Color {r:0, g:32, b:64},
+                Color {r:64, g:96, b:192}
+            ),
             texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, WIDTH, HEIGHT).unwrap(),
             pixel_data: vec![0; (WIDTH*HEIGHT*3) as usize],
             time: 0.0
