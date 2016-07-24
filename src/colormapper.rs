@@ -1,4 +1,4 @@
-pub struct Color {
+struct Color {
     pub r: u8,
     pub g: u8,
     pub b: u8
@@ -10,10 +10,10 @@ pub struct ColorMapper {
 }
 
 impl ColorMapper {
-    pub fn new(color1: Color, color2: Color) -> ColorMapper {
+    pub fn new() -> ColorMapper {
         ColorMapper {
-            color1: color1,
-            color2: color2
+            color1: Color {r:0, g:32, b:64},
+            color2: Color {r:64, g:96, b:192}
         }
     }
 
