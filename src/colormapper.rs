@@ -21,6 +21,8 @@ impl Color {
     }
 }
 
+
+#[derive(Copy,Clone)]
 struct ControlPoint {
     color: Color,
     position: f32
@@ -33,61 +35,16 @@ impl ControlPoint {
             position: position - position.floor()
         }
     }
-}
 
-// impl Ord for ControlPoint {
-//     fn cmp(&self, other: &Self) -> Ordering {
-//         match self.position.partial_cmp(other.position) {
-//             Some(ordering) => ordering,
-//             None => panic!("Tried to compare {} with {}", self, other)
-//         }
-//     }
-// }
-
-struct Subgradient<'a> {
-    index1: usize,
-    index2: usize,
-    gradient: &'a Gradient
-}
-
-impl<'a> Subgradient<'a> {
-    fn get_point1(&self) -> &ControlPoint {
-        &self.gradient.points[self.index1]
-    }
-
-    fn get_point2(&self) -> &ControlPoint {
-        &self.gradient.points[self.index2]
-    }
-
-    fn start(&self) -> f32 {
-        self.get_point1().position
-    }
-
-    fn end(&self) -> f32 {
-        self.get_point2().position
-    }
-
-    fn len(&self) -> f32 {
-        let distance = self.end() - self.start();
-        distance - distance.floor() // if distance is negative, return 1 - distance
-    }
-
-    fn color_at(&self, position: f32) -> Color {
-        let length = self.len();
-        assert!(length != 0.0);
-        let adj_position = (position - self.get_point1().position)/length;
-
-        self.get_point1().color.lerp(self.get_point2().color, adj_position)
-    }
-
-    fn next(&self) -> Subgradient {
-        Subgradient {
-            index1: self.index2,
-            index2: (self.index2 + 1) % self.gradient.points.len(),
-            gradient: self.gradient
-        }
+    fn lerp(&self, other: ControlPoint, position: f32) -> Color {
+        let distance = (other.position - self.position) % 1.0;
+        assert!(distance > 0.0);
+        let adj_position = (position*distance + self.position) % 1.0;
+        self.color.lerp(other.color, adj_position)
+        // TODO: Test this function
     }
 }
+
 
 struct Gradient {
     points: Vec<ControlPoint>
@@ -107,30 +64,28 @@ impl Gradient {
         }
     }
 
-    fn color_at(&self, position: f32) -> Color {
-        self.points[0].color
-        // let result = self.points.binary_search_by_key(&position, |&point| &point.position);
-        // if let Ok(index) = result {
-        //     self.points[index].color
-        // } else {
-        //     let Err(index2) = result;
-        //     let index1 = (index2 - 1) % self.points.len();
-        //
-        //     let subgradient = Subgradient {
-        //         index1: index1,
-        //         index2: index2,
-        //         gradient: &self
-        //     };
-        //     subgradient.color_at(position)
-        // }
-    }
-
-    fn first(&self) -> Subgradient {
-        Subgradient {
+    fn iter(&self) -> GradientIterator {
+        GradientIterator {
             index1: self.points.len() - 1,
-            index2: 0,
             gradient: &self
         }
+    }
+}
+
+
+struct GradientIterator<'a> {
+    index1: usize,
+    gradient: &'a Gradient
+}
+
+impl<'a> Iterator for GradientIterator<'a> {
+    type Item = (ControlPoint, ControlPoint);
+
+    fn next(&mut self) -> Option<(ControlPoint, ControlPoint)> {
+        let index1 = self.index1;
+        let index2 = (self.index1 + 1) % self.gradient.points.len();
+        self.index1 = index2; // advance the iterator
+        Some((self.gradient.points[index1], self.gradient.points[index1]))
     }
 }
 
@@ -152,9 +107,10 @@ impl ColorMapper {
 
     fn compute_lookup_table(&mut self) {
         let gradient = Gradient::new();
+        let mut iter = gradient.iter();
         for i in 0..LOOKUP_TABLE_SIZE {
             let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
-            self.lookup_table[i] = gradient.color_at(position);
+            self.lookup_table[i] = Color {r:0, g:0, b:0};
         }
     }
 
