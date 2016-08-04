@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 const LOOKUP_TABLE_SIZE: usize = 256;
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,Eq,PartialEq,Debug)]
 struct Color {
     pub r: u8,
     pub g: u8,
@@ -10,15 +10,28 @@ struct Color {
 }
 
 impl Color {
+    fn new(r: u8, g: u8, b: u8) -> Color {
+        Color { r: r, g: g, b: b}
+    }
+
     fn lerp(&self, other: Color, position: f32) -> Color {
         assert!(position >= 0.0 && position <= 1.0);
         let opposite = 1.0 - position;
         Color {
-            r: ((self.r as f32)*position + (other.r as f32)*opposite).round() as u8,
-            g: ((self.g as f32)*position + (other.g as f32)*opposite).round() as u8,
-            b: ((self.b as f32)*position + (other.b as f32)*opposite).round() as u8
+            r: ((self.r as f32)*opposite + (other.r as f32)*position).round() as u8,
+            g: ((self.g as f32)*opposite + (other.g as f32)*position).round() as u8,
+            b: ((self.b as f32)*opposite + (other.b as f32)*position).round() as u8
         }
     }
+}
+
+#[test]
+fn test_color_lerp() {
+    let a = Color::new(0, 0, 0);
+    let b = Color::new(128, 128, 128);
+    assert_eq!(a, a.lerp(b, 0.0));
+    assert_eq!(Color::new(64, 64, 64), a.lerp(b, 0.5));
+    assert_eq!(b, a.lerp(b, 1.0));
 }
 
 
@@ -37,12 +50,28 @@ impl ControlPoint {
     }
 
     fn lerp(&self, other: ControlPoint, position: f32) -> Color {
-        let distance = (other.position - self.position) % 1.0;
-        assert!(distance > 0.0);
-        let adj_position = (position*distance + self.position) % 1.0;
+        let distance = other.position - self.position % 1.0;
+        assert!(distance != 0.0);
+        let adj_position = position/distance - self.position;
         self.color.lerp(other.color, adj_position)
-        // TODO: Test this function
     }
+}
+
+#[test]
+fn test_control_point_lerp() {
+    // Test basic case
+    let a = ControlPoint::new(0, 0, 0, 0.0);
+    let b = ControlPoint::new(128, 128, 128, 0.5);
+    assert_eq!(Color::new(0, 0, 0), a.lerp(b, 0.0));
+    assert_eq!(Color::new(32, 32, 32), a.lerp(b, 0.125));
+    assert_eq!(Color::new(64, 64, 64), a.lerp(b, 0.25));
+    assert_eq!(Color::new(96, 96, 96), a.lerp(b, 0.375));
+    // TODO: not working
+    //assert_eq!(Color::new(128, 128, 128), a.lerp(b, 0.5));
+
+    // Test across 1.0/0.0 boundary
+    // TODO: not working
+    //assert_eq!(Color::new(64, 64, 64), b.lerp(a, 0.75));
 }
 
 
