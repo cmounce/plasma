@@ -2,10 +2,12 @@ use std::f32;
 
 pub trait FastMath<F> {
     fn wave(&self) -> F;
+    fn wrap(&self) -> F;
 }
 
 impl FastMath<f32> for f32 {
     // Like sin(), except its period is 1 instead of 2*PI
+    #[inline]
     fn wave(&self) -> f32 {
         // x loops over the range [-0.5, 0.5).
         // Note that x is shifted by half a period: if self is 0, x is -0.5.
@@ -24,6 +26,13 @@ impl FastMath<f32> for f32 {
          * Having one x and one x.abs() flips the parabola upside-down when x is negative.
          */
         x * x.abs().mul_add(16.0, -8.0)
+    }
+
+    // Wraps a value onto the interval [0.0, 1.0).
+    // For example, (-0.25).wrap() returns 0.75.
+    #[inline]
+    fn wrap(&self) -> f32 {
+        self - self.floor()
     }
 }
 
@@ -59,4 +68,20 @@ fn test_wave() {
     assert_feq!((-7.5).wave(), 0.0);
     assert_feq!((-7.25).wave(), -1.0);
     assert_feq!((-7.0).wave(), 0.0);
+}
+
+#[test]
+fn test_wrap() {
+    // Non-negative inputs
+    assert_feq!((0.0).wrap(), 0.0);
+    assert_feq!((0.2).wrap(), 0.2);
+    assert_feq!((1.0).wrap(), 0.0);
+    assert_feq!((1.2).wrap(), 0.2);
+    assert_feq!((7.2).wrap(), 0.2);
+
+    // Negative inputs
+    assert_feq!((-0.2).wrap(), 0.8);
+    assert_feq!((-1.0).wrap(), 0.0);
+    assert_feq!((-1.2).wrap(), 0.8);
+    assert_feq!((-7.2).wrap(), 0.8);
 }

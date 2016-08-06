@@ -1,3 +1,4 @@
+use fastmath::FastMath;
 use std::cmp::Ordering;
 
 const LOOKUP_TABLE_SIZE: usize = 256;
@@ -50,28 +51,39 @@ impl ControlPoint {
     }
 
     fn lerp(&self, other: ControlPoint, position: f32) -> Color {
-        let distance = other.position - self.position % 1.0;
-        assert!(distance != 0.0);
-        let adj_position = position/distance - self.position;
+        // Calculate distance from self to other, moving in the positive direction.
+        // distance = if end > start { end - start } else { 1.0 - (end - start) }
+        let distance = (other.position - self.position).wrap();
+        assert!(distance > 0.0);
+        let adj_position = (position - self.position).wrap()/distance;
         self.color.lerp(other.color, adj_position)
     }
 }
 
 #[test]
 fn test_control_point_lerp() {
+    /*
+     * a                   b
+     * +----+----+----+----+----+----+----+----+
+     * 0  .125  .25 .375  .5  .625  .75 .875   1
+     */
+
     // Test basic case
+    // TODO: Reposition a and b so that a->b and b->a are different lengths
     let a = ControlPoint::new(0, 0, 0, 0.0);
     let b = ControlPoint::new(128, 128, 128, 0.5);
     assert_eq!(Color::new(0, 0, 0), a.lerp(b, 0.0));
     assert_eq!(Color::new(32, 32, 32), a.lerp(b, 0.125));
     assert_eq!(Color::new(64, 64, 64), a.lerp(b, 0.25));
     assert_eq!(Color::new(96, 96, 96), a.lerp(b, 0.375));
-    // TODO: not working
-    //assert_eq!(Color::new(128, 128, 128), a.lerp(b, 0.5));
+    assert_eq!(Color::new(128, 128, 128), a.lerp(b, 0.5));
 
     // Test across 1.0/0.0 boundary
-    // TODO: not working
-    //assert_eq!(Color::new(64, 64, 64), b.lerp(a, 0.75));
+    assert_eq!(Color::new(128, 128, 128), b.lerp(a, 0.5));
+    assert_eq!(Color::new(96, 96, 96), b.lerp(a, 0.625));
+    assert_eq!(Color::new(64, 64, 64), b.lerp(a, 0.75));
+    assert_eq!(Color::new(32, 32, 32), b.lerp(a, 0.875));
+    assert_eq!(Color::new(0, 0, 0), b.lerp(a, 0.0));
 }
 
 
