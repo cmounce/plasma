@@ -46,13 +46,12 @@ impl ControlPoint {
     fn new(r: u8, g: u8, b: u8, position: f32) -> ControlPoint {
         ControlPoint {
             color: Color {r: r, g: g, b: b},
-            position: position - position.floor()
+            position: position.wrap()
         }
     }
 
     fn lerp(&self, other: ControlPoint, position: f32) -> Color {
-        // Calculate distance from self to other, moving in the positive direction.
-        // distance = if end > start { end - start } else { 1.0 - (end - start) }
+        // Calculate distance from self to other, moving in the positive direction
         let distance = (other.position - self.position).wrap();
         assert!(distance > 0.0);
         let adj_position = (position - self.position).wrap()/distance;
@@ -62,28 +61,36 @@ impl ControlPoint {
 
 #[test]
 fn test_control_point_lerp() {
-    /*
-     * a                   b
-     * +----+----+----+----+----+----+----+----+
-     * 0  .125  .25 .375  .5  .625  .75 .875   1
-     */
+     /*
+      * a    b        c    (a)
+      * +----+--------+-----+
+      * 0   0.2      0.7    1
+      */
+    let a = ControlPoint::new(60, 0, 0, 1.0); // 1.0 should wrap to 0.0
+    let b = ControlPoint::new(0, 60, 0, 0.2);
+    let c = ControlPoint::new(0, 0, 60, 0.7);
 
-    // Test basic case
-    // TODO: Reposition a and b so that a->b and b->a are different lengths
-    let a = ControlPoint::new(0, 0, 0, 0.0);
-    let b = ControlPoint::new(128, 128, 128, 0.5);
-    assert_eq!(Color::new(0, 0, 0), a.lerp(b, 0.0));
-    assert_eq!(Color::new(32, 32, 32), a.lerp(b, 0.125));
-    assert_eq!(Color::new(64, 64, 64), a.lerp(b, 0.25));
-    assert_eq!(Color::new(96, 96, 96), a.lerp(b, 0.375));
-    assert_eq!(Color::new(128, 128, 128), a.lerp(b, 0.5));
+    // Test interval starting at 0.0/1.0
+    assert_eq!(a.lerp(b, 0.0), Color::new(60, 0, 0));
+    assert_eq!(a.lerp(b, 0.1), Color::new(30, 30, 0));
+    assert_eq!(a.lerp(b, 0.2), Color::new(0, 60, 0));
 
-    // Test across 1.0/0.0 boundary
-    assert_eq!(Color::new(128, 128, 128), b.lerp(a, 0.5));
-    assert_eq!(Color::new(96, 96, 96), b.lerp(a, 0.625));
-    assert_eq!(Color::new(64, 64, 64), b.lerp(a, 0.75));
-    assert_eq!(Color::new(32, 32, 32), b.lerp(a, 0.875));
-    assert_eq!(Color::new(0, 0, 0), b.lerp(a, 0.0));
+    // Test middle interval
+    assert_eq!(b.lerp(c, 0.2), Color::new(0, 60, 0));
+    assert_eq!(b.lerp(c, 0.3), Color::new(0, 48, 12));
+    assert_eq!(b.lerp(c, 0.7), Color::new(0, 0, 60));
+
+    // Test interval ending at 0.0/1.0
+    assert_eq!(c.lerp(a, 0.7), Color::new(0, 0, 60));
+    assert_eq!(c.lerp(a, 0.8), Color::new(20, 0, 40));
+    assert_eq!(c.lerp(a, 1.0), Color::new(60, 0, 0));
+
+    // Test interval crossing 0.0/1.0
+    assert_eq!(c.lerp(b, 0.7), Color::new(0, 0, 60));
+    assert_eq!(c.lerp(b, 0.8), Color::new(0, 12, 48));
+    assert_eq!(c.lerp(b, 0.0), Color::new(0, 36, 24));
+    assert_eq!(c.lerp(b, 0.1), Color::new(0, 48, 12));
+    assert_eq!(c.lerp(b, 0.2), Color::new(0, 60, 0));
 }
 
 
