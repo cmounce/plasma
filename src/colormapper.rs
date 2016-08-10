@@ -195,19 +195,18 @@ impl Gradient {
 
 
 struct GradientIterator<'a> {
-    index1: usize,
+    index1: usize, // start index: index2 is index1 + 1
     gradient: &'a Gradient
 }
 
 impl<'a> Iterator for GradientIterator<'a> {
-    // TODO: Change to Subgradient
-    type Item = (ControlPoint, ControlPoint);
+    type Item = Subgradient;
 
-    fn next(&mut self) -> Option<(ControlPoint, ControlPoint)> {
+    fn next(&mut self) -> Option<Subgradient> {
         let index1 = self.index1;
         let index2 = (self.index1 + 1) % self.gradient.points.len();
         self.index1 = index2; // advance the iterator
-        Some((self.gradient.points[index1], self.gradient.points[index1]))
+        Some(Subgradient::new(self.gradient.points[index1], self.gradient.points[index1]))
     }
 }
 
@@ -233,9 +232,9 @@ impl ColorMapper {
         let mut subgradient = iter.next().unwrap();
         for i in 0..LOOKUP_TABLE_SIZE {
              let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
-            //  while !subgradient.contains(position) {
-            //      subgradient = iter.next().unwrap();
-            //  }
+             while !subgradient.contains(position) {
+                 subgradient = iter.next().unwrap();
+             }
              self.lookup_table[i] = Color {r:0, g:0, b:0};
         }
     }
