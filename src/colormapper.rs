@@ -60,13 +60,22 @@ impl ControlPoint {
 }
 
 #[test]
+fn test_control_point_new() {
+    let a = ControlPoint::new(1, 2, 3, 0.25);
+    let b = ControlPoint::new(1, 2, 3, 1.25);
+    let c = ControlPoint::new(1, 2, 3, -0.75);
+    assert_eq!(a.position, b.position);
+    assert_eq!(b.position, c.position);
+}
+
+#[test]
 fn test_control_point_lerp() {
      /*
       * a    b        c    (a)
       * +----+--------+-----+
       * 0   0.2      0.7    1
       */
-    let a = ControlPoint::new(60, 0, 0, 1.0); // 1.0 should wrap to 0.0
+    let a = ControlPoint::new(60, 0, 0, 0.0);
     let b = ControlPoint::new(0, 60, 0, 0.2);
     let c = ControlPoint::new(0, 0, 60, 0.7);
 
@@ -115,6 +124,11 @@ impl Subgradient {
             adj_position <= self.point2.position || self.point1.position <= adj_position
         }
     }
+
+    fn color_at(&self, position: f32) -> Color {
+        assert!(self.contains(position));
+        self.point1.lerp(self.point2, position)
+    }
 }
 
 #[test]
@@ -141,6 +155,15 @@ fn test_subgradient_contains_wraparound() {
     assert!(s.contains(1.0));
     assert!(s.contains(1.25));
     assert!(!s.contains(1.26));
+}
+
+#[test]
+fn test_subgradient_color_at() {
+    let s = Subgradient::new(
+        ControlPoint::new(60, 0, 0, 0.8),
+        ControlPoint::new(0, 60, 0, 0.3),
+    );
+    assert_eq!(s.color_at(0.1), Color::new(24, 36, 0));
 }
 
 
@@ -177,6 +200,7 @@ struct GradientIterator<'a> {
 }
 
 impl<'a> Iterator for GradientIterator<'a> {
+    // TODO: Change to Subgradient
     type Item = (ControlPoint, ControlPoint);
 
     fn next(&mut self) -> Option<(ControlPoint, ControlPoint)> {
@@ -206,9 +230,13 @@ impl ColorMapper {
     fn compute_lookup_table(&mut self) {
         let gradient = Gradient::new();
         let mut iter = gradient.iter();
+        let mut subgradient = iter.next().unwrap();
         for i in 0..LOOKUP_TABLE_SIZE {
-            let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
-            self.lookup_table[i] = Color {r:0, g:0, b:0};
+             let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
+            //  while !subgradient.contains(position) {
+            //      subgradient = iter.next().unwrap();
+            //  }
+             self.lookup_table[i] = Color {r:0, g:0, b:0};
         }
     }
 
