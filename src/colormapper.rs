@@ -109,13 +109,10 @@ impl Subgradient {
 
     fn contains(&self, position: f32) -> bool {
         let adj_position = position.wrap();
-        let naive_contains =
-            self.point1.position <= adj_position &&
-            adj_position <= self.point2.position;
         if self.point1.position <= self.point2.position {
-            naive_contains
+            self.point1.position <= adj_position && adj_position <= self.point2.position
         } else {
-            !naive_contains
+            adj_position <= self.point2.position || self.point1.position <= adj_position
         }
     }
 }
@@ -123,28 +120,27 @@ impl Subgradient {
 #[test]
 fn test_subgradient_contains() {
     let s = Subgradient::new(
-        ControlPoint::new(0, 0, 0, 0.2),
-        ControlPoint::new(0, 0, 0, 0.7)
+        ControlPoint::new(0, 0, 0, 0.25),
+        ControlPoint::new(0, 0, 0, 0.75)
     );
-    assert!(!s.contains(0.1));
-    assert!(s.contains(0.2));
+    assert!(!s.contains(0.24));
+    assert!(s.contains(0.25));
     assert!(s.contains(0.5));
-    assert!(s.contains(0.7));
-    assert!(!s.contains(0.8));
+    assert!(s.contains(0.75));
+    assert!(!s.contains(0.76));
 }
 
 #[test]
-#[ignore] // TODO fix
 fn test_subgradient_contains_wraparound() {
     let s = Subgradient::new(
-        ControlPoint::new(0, 0, 0, 0.7),
-        ControlPoint::new(0, 0, 0, 0.2)
+        ControlPoint::new(0, 0, 0, 0.75),
+        ControlPoint::new(0, 0, 0, 0.25)
     );
-    assert!(!s.contains(0.6));
-    assert!(s.contains(0.7));
+    assert!(!s.contains(0.74));
+    assert!(s.contains(0.75));
     assert!(s.contains(1.0));
-    assert!(s.contains(1.2));
-    assert!(!s.contains(1.3));
+    assert!(s.contains(1.25));
+    assert!(!s.contains(1.26));
 }
 
 
