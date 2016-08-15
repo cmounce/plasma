@@ -2,6 +2,7 @@ extern crate sdl2;
 
 mod fastmath;
 mod colormapper;
+mod genetics;
 
 use fastmath::FastMath;
 use colormapper::ColorMapper;
