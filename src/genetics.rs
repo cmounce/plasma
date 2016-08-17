@@ -16,48 +16,102 @@ use self::rand::Rng;
 - A Gene can be either:
     - A ColorGene
     - A PatternGene
+## Thoughts
+- Maybe serialization should be on a Chromosome struct
+    - e.g., Chromosome<ColorGene> would implement to_bytes() and from_bytes()
+    - ColorGene would implement to_bytes() and from_bytes()
+    - types passed around would be Iterators
+- Implement the Genes first. Everything else is boilerplate.
+- Maybe Genes should be generic: just a Vec<u8>
+    Reasoning: genetics.rs shouldn't know Plasma's rules about how a gene behaves
+        - genetics.rs only handles gene-level mixing and byte-level mutation.
+        - Plasma code only handles converting genes to f32 values with special properties
 */
 
-const GENE_SIZE: usize = 16;
-
-#[derive(Debug)]
-struct Genome {
-    color: Vec<Gene>,
-    shape: Vec<Gene>
-}
-
-#[derive(Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq)]
 struct Gene {
     data: Vec<u8>
 }
 
+struct Chromosome {
+    genes: Vec<Gene>
+}
+
+struct Genome {
+    pattern: Chromosome,
+    color: Chromosome
+}
+
 impl Gene {
-    fn rand() -> Gene {
+    fn rand(num_bytes: usize) -> Gene {
         let mut rng = rand::thread_rng();
         let mut data = vec![];
-        for _ in 0..GENE_SIZE {
+        for _ in 0..num_bytes {
             data.push(rng.gen());
         }
 
         Gene { data: data }
     }
+}
 
-    fn mutate(&mut self) {
+impl Chromosome {
+    fn rand(num_genes: usize, gene_size: usize) -> Chromosome {
+        let mut c = Chromosome { genes: vec![] };
+        for _ in 0..num_genes {
+            c.genes.push(Gene::rand(gene_size));
+        }
+        c
+    }
 
+    fn breed(&self, other: &Chromosome) -> Chromosome {
+        assert!(self.genes.len() == other.genes.len());
+        let mut rng = rand::thread_rng();
+        let mut child = Chromosome { genes: vec![] };
+        for i in 0..self.genes.len() {
+            let gene = if rng.gen() { self.genes[i].clone() } else { other.genes[i].clone() };
+            child.genes.push(gene);
+        }
+
+        child
     }
 }
+
+impl Genome {
+    // TODO: Write breed()
+}
+
 
 #[cfg(test)]
 mod tests {
     use super::Gene;
+    use super::Chromosome;
 
     #[test]
     fn test_gene_rand() {
-        let g1 = Gene::rand();
-        let g2 = Gene::rand();
+        let g1 = Gene::rand(8);
+        let g2 = Gene::rand(8);
         assert!(g1 != g2);
-        println!("{:?}", g1);
-        println!("{:?}", g2);
-        //assert!(false);
+    }
+
+    #[test]
+    fn test_chromosome_rand() {
+        let num_genes = 8;
+        let c = Chromosome::rand(num_genes, 8);
+        assert!(c.genes.len() == num_genes);
+        for i in 1..num_genes {
+            assert!(c.genes[i] != c.genes[i - 1]);
+        }
+    }
+
+    #[test]
+    fn test_chromosome_breed() {
+        let num_genes: usize = 16;
+        let a = Chromosome::rand(num_genes, 8);
+        let b = Chromosome::rand(num_genes, 8);
+        let c = a.breed(&b);
+        assert!(c.genes.len() == num_genes);
+        for i in 0..num_genes {
+            assert!(c.genes[i] == a.genes[i] || c.genes[i] == b.genes[i]);
+        }
     }
 }
