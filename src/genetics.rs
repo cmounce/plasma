@@ -71,13 +71,19 @@ impl Chromosome {
             let gene = if rng.gen() { self.genes[i].clone() } else { other.genes[i].clone() };
             child.genes.push(gene);
         }
+        // TODO: add mutation
 
         child
     }
 }
 
 impl Genome {
-    // TODO: Write breed()
+    fn breed(&self, other: &Genome) -> Genome {
+        Genome {
+            pattern: self.pattern.breed(&other.pattern),
+            color: self.color.breed(&other.color)
+        }
+    }
 }
 
 
@@ -85,6 +91,7 @@ impl Genome {
 mod tests {
     use super::Gene;
     use super::Chromosome;
+    use super::Genome;
 
     #[test]
     fn test_gene_rand() {
@@ -113,5 +120,20 @@ mod tests {
         for i in 0..num_genes {
             assert!(c.genes[i] == a.genes[i] || c.genes[i] == b.genes[i]);
         }
+    }
+
+    #[test]
+    fn test_genome_breed() {
+        let a = Genome {
+            color: Chromosome::rand(1, 2),
+            pattern: Chromosome::rand(3, 4)
+        };
+        let b = Genome {
+            color: Chromosome::rand(1, 2),
+            pattern: Chromosome::rand(3, 4)
+        };
+        let c = a.breed(&b);
+        assert!(c.color.genes.len() == 1);
+        assert!(c.pattern.genes.len() == 3);
     }
 }
