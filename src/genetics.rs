@@ -1,6 +1,7 @@
 extern crate rand;
 
 use self::rand::Rng;
+use self::rand::distributions::{Exp, IndependentSample};
 
 /*
 # Design
@@ -28,6 +29,8 @@ use self::rand::Rng;
         - Plasma code only handles converting genes to f32 values with special properties
 */
 
+const MUTATION_RATE: f64 = 0.01;
+
 #[derive(Clone,Debug,Eq,PartialEq)]
 struct Gene {
     data: Vec<u8>
@@ -47,10 +50,29 @@ impl Gene {
         let mut rng = rand::thread_rng();
         let mut data = vec![];
         for _ in 0..num_bytes {
-            data.push(rng.gen());
+            data.push(rng.gen()); // TODO: is there a shorter way to do this?
         }
 
         Gene { data: data }
+    }
+
+    fn mutating_clone(&self) -> Gene {
+        let mut rng = rand::thread_rng();
+        let exp = Exp::new(MUTATION_RATE);
+        let mut mutation_position = 0.0;
+        // Start with a non-mutated version of self
+        let mut gene = self.clone();
+        loop {
+            // Calculate distance to next mutation
+            mutation_position += exp.ind_sample(&mut rng);
+            let index = mutation_position.round() as usize;
+            if index >= gene.data.len() {
+                break;
+            }
+            // Replace one byte of the gene
+            gene.data[index] = rng.gen();
+        }
+        gene
     }
 }
 
@@ -68,11 +90,13 @@ impl Chromosome {
         let mut rng = rand::thread_rng();
         let mut child = Chromosome { genes: vec![] };
         for i in 0..self.genes.len() {
-            let gene = if rng.gen() { self.genes[i].clone() } else { other.genes[i].clone() };
+            let gene = if rng.gen() {
+                self.genes[i].mutating_clone()
+            } else {
+                other.genes[i].mutating_clone()
+            };
             child.genes.push(gene);
         }
-        // TODO: add mutation
-
         child
     }
 }
@@ -90,14 +114,46 @@ impl Genome {
 #[cfg(test)]
 mod tests {
     use super::Gene;
-    use super::Chromosome;
     use super::Genome;
+    use super::Chromosome;
+    use super::MUTATION_RATE;
+
+    impl Gene {
+        // Test helper -- used for detecting mutation
+        fn hamming(&self, other: &Gene) -> usize {
+            assert!(self.data.len() == other.data.len());
+            let mut hamming = 0;
+            for i in 0..self.data.len() {
+                if self.data[i] != other.data[i] {
+                    hamming += 1;
+                }
+            }
+            hamming
+        }
+    }
 
     #[test]
     fn test_gene_rand() {
         let g1 = Gene::rand(8);
         let g2 = Gene::rand(8);
         assert!(g1 != g2);
+    }
+
+    #[test]
+    fn test_gene_mutating_clone() {
+        // TODO: Add another test that tests many small genes?
+        let gene_size = 5000.0;
+        let g1 = Gene::rand(gene_size as usize);
+        let g2 = g1.mutating_clone();
+        let num_mutations = g1.hamming(&g2) as f64;
+        let expected_mutations = gene_size*MUTATION_RATE;
+        let variance = gene_size*MUTATION_RATE*(1.0 - MUTATION_RATE);
+        let std_dev = variance.sqrt();
+        let lower_bound = expected_mutations - std_dev*4.0;
+        let upper_bound = expected_mutations + std_dev*4.0;
+        assert!(lower_bound >= 1.0); // Make sure our bounds detect at least one mutation
+        assert!(upper_bound < gene_size); // and that the lower bound isn't too high
+        assert!(lower_bound < num_mutations && num_mutations < upper_bound);
     }
 
     #[test]
@@ -112,13 +168,18 @@ mod tests {
 
     #[test]
     fn test_chromosome_breed() {
-        let num_genes: usize = 16;
-        let a = Chromosome::rand(num_genes, 8);
-        let b = Chromosome::rand(num_genes, 8);
+        let num_genes = 16;
+        let gene_size = 16;
+        let a = Chromosome::rand(num_genes, gene_size);
+        let b = Chromosome::rand(num_genes, gene_size);
         let c = a.breed(&b);
         assert!(c.genes.len() == num_genes);
         for i in 0..num_genes {
-            assert!(c.genes[i] == a.genes[i] || c.genes[i] == b.genes[i]);
+            // Assert that a majority of this gene's bytes come from one of the parents.
+            // Not all of them may match due to mutation.
+            let a_distance = a.genes[i].hamming(&c.genes[i]);
+            let b_distance = b.genes[i].hamming(&c.genes[i]);
+            assert!(a_distance < gene_size/2 || b_distance < gene_size/2);
         }
     }
 
