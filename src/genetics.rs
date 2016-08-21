@@ -1,7 +1,7 @@
 extern crate rand;
 
 use self::rand::Rng;
-use self::rand::distributions::{Exp, IndependentSample};
+use self::rand::distributions::{Exp, IndependentSample, Normal};
 
 /*
 # Design
@@ -27,9 +27,12 @@ use self::rand::distributions::{Exp, IndependentSample};
     Reasoning: genetics.rs shouldn't know Plasma's rules about how a gene behaves
         - genetics.rs only handles gene-level mixing and byte-level mutation.
         - Plasma code only handles converting genes to f32 values with special properties
+- TODO: Update Gradient constructor to take a Vec<ControlPoint>
+- TODO: Update ColorMapper to call a new function ControlPoint::from_gene(Gene) -> Option<ControlPoint>
 */
 
 const MUTATION_RATE: f64 = 0.01;
+const MUTATION_STD_DEV: f64 = 32.0;
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 struct Gene {
@@ -50,7 +53,7 @@ impl Gene {
         let mut rng = rand::thread_rng();
         let mut data = vec![];
         for _ in 0..num_bytes {
-            data.push(rng.gen()); // TODO: is there a shorter way to do this?
+            data.push(rng.gen());
         }
 
         Gene { data: data }
@@ -59,6 +62,7 @@ impl Gene {
     fn mutating_clone(&self) -> Gene {
         let mut rng = rand::thread_rng();
         let exp = Exp::new(MUTATION_RATE);
+        let normal = Normal::new(0.0, MUTATION_STD_DEV);
         let mut mutation_position = 0.0;
         // Start with a non-mutated version of self
         let mut gene = self.clone();
@@ -70,7 +74,17 @@ impl Gene {
                 break;
             }
             // Replace one byte of the gene
-            gene.data[index] = rng.gen();
+            let old_value = gene.data[index];
+            let mut new_value = old_value;
+            while new_value == old_value {
+                let delta = normal.ind_sample(&mut rng).round();
+                if delta >= 0.0 {
+                    new_value = old_value.saturating_add(delta as u8);
+                } else {
+                    new_value = old_value.saturating_sub(delta.abs() as u8);
+                }
+            }
+            gene.data[index] = new_value;
         }
         gene
     }
@@ -141,7 +155,6 @@ mod tests {
 
     #[test]
     fn test_gene_mutating_clone() {
-        // TODO: Add another test that tests many small genes?
         let gene_size = 5000.0;
         let g1 = Gene::rand(gene_size as usize);
         let g2 = g1.mutating_clone();
