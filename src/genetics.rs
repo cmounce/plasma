@@ -69,7 +69,7 @@ impl Gene {
         loop {
             // Calculate distance to next mutation
             mutation_position += exp.ind_sample(&mut rng);
-            let index = mutation_position.round() as usize;
+            let index = mutation_position.floor() as usize;
             if index >= gene.data.len() {
                 break;
             }
@@ -78,10 +78,12 @@ impl Gene {
             let mut new_value = old_value;
             while new_value == old_value {
                 let delta = normal.ind_sample(&mut rng).round();
-                if delta >= 0.0 {
-                    new_value = old_value.saturating_add(delta as u8);
-                } else {
-                    new_value = old_value.saturating_sub(delta.abs() as u8);
+                if delta >= -255.0 && delta <= 255.0 {
+                    new_value = if delta >= 0.0 {
+                        old_value.saturating_add(delta as u8)
+                    } else {
+                        old_value.saturating_sub(delta.abs() as u8)
+                    }
                 }
             }
             gene.data[index] = new_value;
@@ -153,20 +155,46 @@ mod tests {
         assert!(g1 != g2);
     }
 
+    // Calculates how many mutations would be too few or too many,
+    // given num_cloned_bytes and MUTATION_RATE.
+    fn calculate_mutation_bounds(num_cloned_bytes: usize) -> (usize, usize) {
+        let n = num_cloned_bytes as f64;
+        let expected_mutations = n*MUTATION_RATE;
+        let variance = n*MUTATION_RATE*(1.0 - MUTATION_RATE);
+        let std_dev = variance.sqrt();
+        let lower_bound = (expected_mutations - std_dev*4.0).round() as usize;
+        let upper_bound = (expected_mutations + std_dev*4.0).round() as usize;
+        assert!(lower_bound > 0); // Make sure it's possible to fail the test by having
+        assert!(upper_bound < num_cloned_bytes); // too few or too many mutations
+        (lower_bound, upper_bound)
+    }
+
     #[test]
     fn test_gene_mutating_clone() {
-        let gene_size = 5000.0;
-        let g1 = Gene::rand(gene_size as usize);
+        let gene_size = 5000;
+        let g1 = Gene::rand(gene_size);
         let g2 = g1.mutating_clone();
-        let num_mutations = g1.hamming(&g2) as f64;
-        let expected_mutations = gene_size*MUTATION_RATE;
-        let variance = gene_size*MUTATION_RATE*(1.0 - MUTATION_RATE);
-        let std_dev = variance.sqrt();
-        let lower_bound = expected_mutations - std_dev*4.0;
-        let upper_bound = expected_mutations + std_dev*4.0;
-        assert!(lower_bound >= 1.0); // Make sure our bounds detect at least one mutation
-        assert!(upper_bound < gene_size); // and that the lower bound isn't too high
-        assert!(lower_bound < num_mutations && num_mutations < upper_bound);
+        let num_mutations = g1.hamming(&g2);
+        let (lower_bound, upper_bound) = calculate_mutation_bounds(gene_size);
+        assert!(lower_bound < num_mutations);
+        assert!(num_mutations < upper_bound);
+    }
+
+    #[test]
+    fn test_gene_mutating_clone_small() {
+        let mut g = Gene::rand(1);
+        let num_clones = 10000;
+        let mut num_mutations = 0;
+        for _ in 0..num_clones {
+            let clone = g.mutating_clone();
+            if g.hamming(&clone) > 0 {
+                num_mutations += 1;
+            }
+            g = clone;
+        }
+        let (lower, upper) = calculate_mutation_bounds(num_clones);
+        assert!(lower < num_mutations);
+        assert!(num_mutations < upper);
     }
 
     #[test]
