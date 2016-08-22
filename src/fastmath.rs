@@ -3,6 +3,8 @@ use std::f32;
 pub trait FastMath<F> {
     fn wave(&self) -> F;
     fn wrap(&self) -> F;
+    fn lerp(&self, other: F, position: F) -> F;
+    fn clamp(&self, lower: F, upper: F) -> F;
 }
 
 impl FastMath<f32> for f32 {
@@ -33,6 +35,18 @@ impl FastMath<f32> for f32 {
     #[inline]
     fn wrap(&self) -> f32 {
         self - self.floor()
+    }
+
+    // Linear interpolation from self to other
+    // TODO: test
+    fn lerp(&self, other: f32, position: f32) -> f32 {
+        self*(1.0 - position) + other*position
+    }
+
+    // Restrict self to the specified range, inclusive
+    // TODO: test
+    fn clamp(&self, lower: f32, upper: f32) -> f32 {
+        self.min(upper).max(lower)
     }
 }
 

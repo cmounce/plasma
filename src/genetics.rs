@@ -27,7 +27,6 @@ use self::rand::distributions::{Exp, IndependentSample, Normal};
     Reasoning: genetics.rs shouldn't know Plasma's rules about how a gene behaves
         - genetics.rs only handles gene-level mixing and byte-level mutation.
         - Plasma code only handles converting genes to f32 values with special properties
-- TODO: Update Gradient constructor to take a Vec<ControlPoint>
 - TODO: Update ColorMapper to call a new function ControlPoint::from_gene(Gene) -> Option<ControlPoint>
 */
 
@@ -35,8 +34,8 @@ const MUTATION_RATE: f64 = 0.01;
 const MUTATION_STD_DEV: f64 = 32.0;
 
 #[derive(Clone,Debug,Eq,PartialEq)]
-struct Gene {
-    data: Vec<u8>
+pub struct Gene {
+    pub data: Vec<u8>
 }
 
 struct Chromosome {
