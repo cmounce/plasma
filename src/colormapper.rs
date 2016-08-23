@@ -289,10 +289,14 @@ pub struct ColorMapper {
 impl ColorMapper {
     pub fn new() -> ColorMapper {
         let mut lookup_table = [Color {r:0, g:0, b:0}; LOOKUP_TABLE_SIZE];
-        let gradient = Gradient::new(vec![
-            ControlPoint::new(0, 32, 64, 0.0),
-            ControlPoint::new(64, 96, 192, 0.5)
-        ]);
+        let mut control_points = vec![];
+        while control_points.len() < 3 {
+            let g = Gene::rand(5);
+            if let Some(cp) = ControlPoint::from_gene(&g) {
+                control_points.push(cp);
+            }
+        }
+        let gradient = Gradient::new(control_points);
         let mut iter = gradient.iter();
         let mut subgradient = iter.next().unwrap();
         for i in 0..LOOKUP_TABLE_SIZE {

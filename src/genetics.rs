@@ -4,31 +4,11 @@ use self::rand::Rng;
 use self::rand::distributions::{Exp, IndependentSample, Normal};
 
 /*
-# Design
-- Two chromosomes: one for pattern, one for color
-- Color gene: position + color + is_enabled
-- Pattern gene: just a value (index into chromosome determines which equation it goes into)
-- Mutation: add a random number
-- Recombination: for each gene in chromosome, randomly pick A's or B's copy
-
-# Implementation
-- A Genome is a collection of chromosomes.
-- A chromosome is a Vec of Genes.
-- A Gene can be either:
-    - A ColorGene
-    - A PatternGene
-## Thoughts
-- Maybe serialization should be on a Chromosome struct
-    - e.g., Chromosome<ColorGene> would implement to_bytes() and from_bytes()
-    - ColorGene would implement to_bytes() and from_bytes()
-    - types passed around would be Iterators
-- Implement the Genes first. Everything else is boilerplate.
-- Maybe Genes should be generic: just a Vec<u8>
-    Reasoning: genetics.rs shouldn't know Plasma's rules about how a gene behaves
-        - genetics.rs only handles gene-level mixing and byte-level mutation.
-        - Plasma code only handles converting genes to f32 values with special properties
-- TODO: Update ColorMapper to call a new function ControlPoint::from_gene(Gene) -> Option<ControlPoint>
-*/
+ * Definitions for genes, chromosomes, and genomes.
+ *
+ * This module doesn't know the plasma's rules about how a gene behaves.
+ * It only handles gene-level mixing and byte-level mutation.
+ */
 
 const MUTATION_RATE: f64 = 0.01;
 const MUTATION_STD_DEV: f64 = 32.0;
@@ -48,7 +28,7 @@ struct Genome {
 }
 
 impl Gene {
-    fn rand(num_bytes: usize) -> Gene {
+    pub fn rand(num_bytes: usize) -> Gene {
         let mut rng = rand::thread_rng();
         let mut data = vec![];
         for _ in 0..num_bytes {
@@ -73,6 +53,7 @@ impl Gene {
                 break;
             }
             // Replace one byte of the gene
+            // TODO: test distribution of mutations?
             let old_value = gene.data[index];
             let mut new_value = old_value;
             while new_value == old_value {
