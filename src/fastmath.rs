@@ -60,42 +60,63 @@ macro_rules! assert_feq {
     );
 }
 
-#[test]
-fn test_wave() {
-    // Test area around 0
-    assert_feq!((-0.5).wave(), 0.0);
-    assert_feq!((-0.25).wave(), -1.0);
-    assert_feq!((0.0).wave(), 0.0);
-    assert_feq!((0.25).wave(), 1.0);
-    assert_feq!((0.5).wave(), 0.0);
+#[cfg(test)]
+mod tests {
+    use fastmath::FastMath;
 
-    // Test area further away
-    assert_feq!((8.0).wave(), 0.0);
-    assert_feq!((8.25).wave(), 1.0);
-    assert_feq!((8.5).wave(), 0.0);
-    assert_feq!((8.75).wave(), -1.0);
-    assert_feq!((9.0).wave(), 0.0);
+    #[test]
+    fn test_wave() {
+        // Test area around 0
+        assert_feq!((-0.5).wave(), 0.0);
+        assert_feq!((-0.25).wave(), -1.0);
+        assert_feq!((0.0).wave(), 0.0);
+        assert_feq!((0.25).wave(), 1.0);
+        assert_feq!((0.5).wave(), 0.0);
 
-    // Test area further into the negatives
-    assert_feq!((-8.0).wave(), 0.0);
-    assert_feq!((-7.75).wave(), 1.0);
-    assert_feq!((-7.5).wave(), 0.0);
-    assert_feq!((-7.25).wave(), -1.0);
-    assert_feq!((-7.0).wave(), 0.0);
-}
+        // Test area further away
+        assert_feq!((8.0).wave(), 0.0);
+        assert_feq!((8.25).wave(), 1.0);
+        assert_feq!((8.5).wave(), 0.0);
+        assert_feq!((8.75).wave(), -1.0);
+        assert_feq!((9.0).wave(), 0.0);
 
-#[test]
-fn test_wrap() {
-    // Non-negative inputs
-    assert_feq!((0.0).wrap(), 0.0);
-    assert_feq!((0.2).wrap(), 0.2);
-    assert_feq!((1.0).wrap(), 0.0);
-    assert_feq!((1.2).wrap(), 0.2);
-    assert_feq!((7.2).wrap(), 0.2);
+        // Test area further into the negatives
+        assert_feq!((-8.0).wave(), 0.0);
+        assert_feq!((-7.75).wave(), 1.0);
+        assert_feq!((-7.5).wave(), 0.0);
+        assert_feq!((-7.25).wave(), -1.0);
+        assert_feq!((-7.0).wave(), 0.0);
+    }
 
-    // Negative inputs
-    assert_feq!((-0.2).wrap(), 0.8);
-    assert_feq!((-1.0).wrap(), 0.0);
-    assert_feq!((-1.2).wrap(), 0.8);
-    assert_feq!((-7.2).wrap(), 0.8);
+    #[test]
+    fn test_wrap() {
+        // Non-negative inputs
+        assert_feq!((0.0).wrap(), 0.0);
+        assert_feq!((0.2).wrap(), 0.2);
+        assert_feq!((1.0).wrap(), 0.0);
+        assert_feq!((1.2).wrap(), 0.2);
+        assert_feq!((7.2).wrap(), 0.2);
+
+        // Negative inputs
+        assert_feq!((-0.2).wrap(), 0.8);
+        assert_feq!((-1.0).wrap(), 0.0);
+        assert_feq!((-1.2).wrap(), 0.8);
+        assert_feq!((-7.2).wrap(), 0.8);
+    }
+
+    #[test]
+    fn test_lerp() {
+        // Simple case
+        assert_feq!((0.0).lerp(1.0, 0.0), 0.0);
+        assert_feq!((0.0).lerp(1.0, 0.5), 0.5);
+        assert_feq!((0.0).lerp(1.0, 1.0), 1.0);
+
+        // Going backward
+        assert_feq!((10.0).lerp(5.0, 0.2), 9.0);
+
+        // Going past 0.0
+        assert_feq!((5.0).lerp(-5.0, 0.2), 3.0);
+        assert_feq!((5.0).lerp(-5.0, 0.5), 0.0);
+        assert_feq!((5.0).lerp(-5.0, 0.8), -3.0);
+    }
 }
