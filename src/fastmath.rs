@@ -38,13 +38,11 @@ impl FastMath<f32> for f32 {
     }
 
     // Linear interpolation from self to other
-    // TODO: test
     fn lerp(&self, other: f32, position: f32) -> f32 {
         self*(1.0 - position) + other*position
     }
 
     // Restrict self to the specified range, inclusive
-    // TODO: test
     fn clamp(&self, lower: f32, upper: f32) -> f32 {
         self.min(upper).max(lower)
     }
@@ -118,5 +116,14 @@ mod tests {
         assert_feq!((5.0).lerp(-5.0, 0.2), 3.0);
         assert_feq!((5.0).lerp(-5.0, 0.5), 0.0);
         assert_feq!((5.0).lerp(-5.0, 0.8), -3.0);
+    }
+
+    #[test]
+    fn test_clamp() {
+        assert_feq!((-10.1).clamp(-10.0, 10.0), -10.0);
+        assert_feq!((-10.0).clamp(-10.0, 10.0), -10.0);
+        assert_feq!((5.0).clamp(-10.0, 10.0), 5.0);
+        assert_feq!((10.0).clamp(-10.0, 10.0), 10.0);
+        assert_feq!((10.1).clamp(-10.0, 10.0), 10.0);
     }
 }
