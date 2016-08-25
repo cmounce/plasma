@@ -27,6 +27,32 @@ struct Genome {
     color: Chromosome
 }
 
+trait Mutate {
+    fn mutate(&self) -> Self;
+}
+
+impl Mutate for u8 {
+    fn mutate(&self) -> u8 {
+        let mut rng = rand::thread_rng();
+        let normal = Normal::new(0.0, MUTATION_STD_DEV);
+
+        let old_value = *self;
+        let mut new_value = old_value;
+        while new_value == old_value {
+            let delta = normal.ind_sample(&mut rng).round();
+            if delta >= -255.0 && delta <= 255.0 {
+                new_value = if delta >= 0.0 {
+                    old_value.saturating_add(delta as u8)
+                } else {
+                    old_value.saturating_sub(delta.abs() as u8)
+                }
+            }
+        }
+
+        new_value
+    }
+}
+
 impl Gene {
     pub fn rand(num_bytes: usize) -> Gene {
         let mut rng = rand::thread_rng();
@@ -41,7 +67,6 @@ impl Gene {
     fn mutating_clone(&self) -> Gene {
         let mut rng = rand::thread_rng();
         let exp = Exp::new(MUTATION_RATE);
-        let normal = Normal::new(0.0, MUTATION_STD_DEV);
         let mut mutation_position = 0.0;
         // Start with a non-mutated version of self
         let mut gene = self.clone();
@@ -53,20 +78,7 @@ impl Gene {
                 break;
             }
             // Replace one byte of the gene
-            // TODO: test distribution of mutations?
-            let old_value = gene.data[index];
-            let mut new_value = old_value;
-            while new_value == old_value {
-                let delta = normal.ind_sample(&mut rng).round();
-                if delta >= -255.0 && delta <= 255.0 {
-                    new_value = if delta >= 0.0 {
-                        old_value.saturating_add(delta as u8)
-                    } else {
-                        old_value.saturating_sub(delta.abs() as u8)
-                    }
-                }
-            }
-            gene.data[index] = new_value;
+            gene.data[index] = gene.data[index].mutate();
         }
         gene
     }
@@ -109,6 +121,7 @@ impl Genome {
 
 #[cfg(test)]
 mod tests {
+    use super::Mutate;
     use super::Gene;
     use super::Genome;
     use super::Chromosome;
@@ -125,6 +138,16 @@ mod tests {
                 }
             }
             hamming
+        }
+    }
+
+    #[test]
+    fn test_u8_mutate() {
+        // Make sure that mutate() always returns a different number
+        for _ in 0..2000 {
+            assert!(0 != 0.mutate());
+            assert!(128 != 128.mutate());
+            assert!(255 != 255.mutate());
         }
     }
 
