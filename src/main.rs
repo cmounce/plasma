@@ -3,6 +3,7 @@ extern crate sdl2;
 mod fastmath;
 mod colormapper;
 mod genetics;
+mod gradient;
 
 use fastmath::FastMath;
 use colormapper::ColorMapper;
