@@ -74,20 +74,25 @@ fn test_color_from_hsv() {
     assert_eq!(Color::from_hsv(0.5, 0.0, 0.0), Color::new(0, 0, 0));
     assert_eq!(Color::from_hsv(0.5, 1.0, 0.0), Color::new(0, 0, 0));
 
-    // Test primaries and secondaries
-    assert_eq!(Color::from_hsv(0.0,     1.0, 1.0), Color::new(255, 0,   0));
-    assert_eq!(Color::from_hsv(1.0/6.0, 1.0, 1.0), Color::new(255, 255, 0));
-    assert_eq!(Color::from_hsv(2.0/6.0, 1.0, 1.0), Color::new(0,   255, 0));
-    assert_eq!(Color::from_hsv(3.0/6.0, 1.0, 1.0), Color::new(0,   255, 255));
-    assert_eq!(Color::from_hsv(4.0/6.0, 1.0, 1.0), Color::new(0,   0,   255));
-    assert_eq!(Color::from_hsv(5.0/6.0, 1.0, 1.0), Color::new(255, 0,   255));
-    assert_eq!(Color::from_hsv(1.0,     1.0, 1.0), Color::new(255, 0,   0));
+    // Test parts of color wheel
+    assert_eq!(Color::from_hsv(0.0,       1.0, 1.0), Color::new(255,   0,   0));
+    assert_eq!(Color::from_hsv(1.0/18.0,  1.0, 1.0), Color::new(255,  85,   0));
+    assert_eq!(Color::from_hsv(3.0/18.0,  1.0, 1.0), Color::new(255, 255,   0));
+    assert_eq!(Color::from_hsv(4.0/18.0,  1.0, 1.0), Color::new(170, 255,   0));
+    assert_eq!(Color::from_hsv(6.0/18.0,  1.0, 1.0), Color::new(  0, 255,   0));
+    assert_eq!(Color::from_hsv(7.0/18.0,  1.0, 1.0), Color::new(  0, 255,  85));
+    assert_eq!(Color::from_hsv(9.0/18.0,  1.0, 1.0), Color::new(  0, 255, 255));
+    assert_eq!(Color::from_hsv(10.0/18.0, 1.0, 1.0), Color::new(  0, 170, 255));
+    assert_eq!(Color::from_hsv(12.0/18.0, 1.0, 1.0), Color::new(  0,   0, 255));
+    assert_eq!(Color::from_hsv(13.0/18.0, 1.0, 1.0), Color::new( 85,   0, 255));
+    assert_eq!(Color::from_hsv(15.0/18.0, 1.0, 1.0), Color::new(255,   0, 255));
+    assert_eq!(Color::from_hsv(16.0/18.0, 1.0, 1.0), Color::new(255,   0, 170));
+    assert_eq!(Color::from_hsv(1.0,       1.0, 1.0), Color::new(255,   0,   0));
 
     // Test saturation
     assert_eq!(Color::from_hsv(0.0, 1.0, 1.0),      Color::new(255, 0, 0));
     assert_eq!(Color::from_hsv(0.0, 2.0/3.0, 1.0),  Color::new(255, 85, 85));
     assert_eq!(Color::from_hsv(0.0, 1.0/3.0, 1.0),  Color::new(255, 170, 170));
-    // TODO: more tests?
 }
 
 
