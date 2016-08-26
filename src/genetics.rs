@@ -126,6 +126,7 @@ mod tests {
     use super::Genome;
     use super::Chromosome;
     use super::MUTATION_RATE;
+    use super::MUTATION_STD_DEV;
 
     impl Gene {
         // Test helper -- used for detecting mutation
@@ -142,13 +143,25 @@ mod tests {
     }
 
     #[test]
+    // Make sure that mutate() always returns a different number
     fn test_u8_mutate() {
-        // Make sure that mutate() always returns a different number
         for _ in 0..2000 {
             assert!(0 != 0.mutate());
             assert!(128 != 128.mutate());
             assert!(255 != 255.mutate());
         }
+    }
+
+    #[test]
+    // Make sure that nearby bytes are more likely to be chosen
+    fn test_u8_mutate_distribution() {
+        let num_mutations = 100;
+        let mut sum = 0;
+        for _ in 0..num_mutations {
+            sum += 0.mutate() as u64;
+        }
+        let mean = (sum as f64)/(num_mutations as f64);
+        assert!(mean < MUTATION_STD_DEV); // about 68% of mutations will be less than this
     }
 
     #[test]
