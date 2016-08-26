@@ -154,6 +154,7 @@ fn test_subgradient_contains_wraparound() {
     assert!(!s.contains(1.26));
 }
 
+// TODO: Organize tests
 #[test]
 fn test_subgradient_color_at() {
     let s = Subgradient::new(
@@ -170,8 +171,15 @@ pub struct Gradient {
 
 impl Gradient {
     pub fn new(control_points: Vec<ControlPoint>) -> Gradient {
-        assert!(control_points.len() >= 2);
         let mut points = control_points.clone();
+        if points.len() == 0 {
+            points.push(ControlPoint::new(128, 128, 128, 0.0));
+        }
+        if points.len() == 1 {
+            let mut cp = points[0];
+            cp.position = (cp.position + 0.5).wrap();
+            points.push(cp)
+        }
         points.sort_by(|a, b| (a.position).partial_cmp(&b.position).unwrap());
 
         Gradient {

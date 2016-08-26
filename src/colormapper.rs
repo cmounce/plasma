@@ -32,6 +32,7 @@ impl Color {
     }
 }
 
+// TODO: Organize tests
 #[test]
 fn test_color_from_hsv() {
     /*
@@ -94,7 +95,7 @@ impl ColorMapper {
     pub fn new() -> ColorMapper {
         let mut lookup_table = [Color {r:0, g:0, b:0}; LOOKUP_TABLE_SIZE];
         let mut control_points = vec![];
-        while control_points.len() < 3 {
+        for _ in 0..10 {
             let g = Gene::rand(5);
             if let Some(cp) = ControlPoint::from_gene(&g) {
                 control_points.push(cp);
