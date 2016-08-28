@@ -8,6 +8,12 @@ use self::rand::distributions::{Exp, IndependentSample, Normal};
  *
  * This module doesn't know the plasma's rules about how a gene behaves.
  * It only handles gene-level mixing and byte-level mutation.
+ *
+ * Organization:
+ * - A Genome represents everything about a plasma
+ * - A Chromosome represents a certain aspect of a plasma (e.g., its color scheme)
+ * - A Gene represents a further smaller component (e.g., that the color scheme contains red)
+ * - Genes are byte vectors.
  */
 
 const MUTATION_RATE: f64 = 0.01;

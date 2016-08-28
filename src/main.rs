@@ -18,6 +18,8 @@ use std::time::SystemTime;
 const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
 
+// TODO: Move Plasma struct to its own file
+// TODO: Add methods for approving/rejecting the current pattern/color
 struct Plasma {
     color_mapper: ColorMapper,
     texture: Texture,
