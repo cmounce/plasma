@@ -1,5 +1,6 @@
 extern crate rand;
 
+use std::collections::VecDeque;
 use self::rand::Rng;
 use self::rand::distributions::{Exp, IndependentSample, Normal};
 
@@ -24,13 +25,20 @@ pub struct Gene {
     pub data: Vec<u8>
 }
 
+#[derive(Clone,Debug,Eq,PartialEq)]
 struct Chromosome {
     genes: Vec<Gene>
 }
 
+#[derive(Clone,Debug,Eq,PartialEq)]
 struct Genome {
     pattern: Chromosome,
     color: Chromosome
+}
+
+struct Population {
+    genomes: VecDeque<Genome>,
+    max_size: usize
 }
 
 trait Mutate {
@@ -124,6 +132,35 @@ impl Genome {
     }
 }
 
+impl Population {
+    fn new(max_size: usize) -> Population {
+        Population {
+            genomes: VecDeque::with_capacity(max_size),
+            max_size: max_size
+        }
+    }
+
+    fn add(&mut self, genome: Genome) {
+        self.genomes.push_back(genome);
+        if self.genomes.len() > self.max_size {
+            self.genomes.pop_front();
+        }
+    }
+
+    fn get_pair(&self) -> Option<(&Genome, &Genome)> {
+        let num_genomes = self.genomes.len();
+        if num_genomes < 2 {
+            None
+        } else {
+            // Pick two different genomes
+            let mut rng = rand::thread_rng();
+            let index1 = rng.gen_range(0, num_genomes);
+            let index2_raw = rng.gen_range(0, num_genomes - 1);
+            let index2 = if index2_raw >= index1 { index2_raw + 1 } else { index2_raw };
+            Some((self.genomes.get(index1).unwrap(), self.genomes.get(index2).unwrap()))
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -131,6 +168,7 @@ mod tests {
     use super::Gene;
     use super::Genome;
     use super::Chromosome;
+    use super::Population;
     use super::MUTATION_RATE;
     use super::MUTATION_STD_DEV;
 
@@ -259,5 +297,34 @@ mod tests {
         let c = a.breed(&b);
         assert!(c.color.genes.len() == 1);
         assert!(c.pattern.genes.len() == 3);
+    }
+
+    #[test]
+    fn test_population() {
+        let max_genomes = 5;
+        let mut p = Population::new(max_genomes);
+        // Test get_pair() with <= 2 genomes
+        let g = Genome {
+            color: Chromosome::rand(4,4),
+            pattern: Chromosome::rand(4,4)
+        };
+        assert_eq!(p.get_pair().is_some(), false);
+        p.add(g.clone());
+        assert_eq!(p.get_pair().is_some(), false);
+        p.add(g.clone());
+        assert_eq!(p.get_pair().is_some(), true);
+        // Fill Population past its limit of max_genomes
+        for _ in 0..max_genomes {
+            let g = Genome {
+                color: Chromosome::rand(4, 4),
+                pattern: Chromosome::rand(4, 4)
+            };
+            p.add(g);
+        }
+        for _ in 0..100 {
+            let (g1, g2) = p.get_pair().unwrap();
+            assert!(*g1 != *g2); // Make sure we got two different genomes
+            assert!(*g1 != g && *g2 != g); // Make sure original genomes were flushed out
+        }
     }
 }
