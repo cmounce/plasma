@@ -33,6 +33,7 @@ impl Color {
         Color { r: r, g: g, b: b}
     }
 
+    // TODO: Make this work in a gamma-correct way
     pub fn lerp(&self, other: Color, position: f32) -> Color {
         assert!(position >= 0.0 && position <= 1.0);
         let opposite = 1.0 - position;
