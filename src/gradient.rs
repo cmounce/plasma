@@ -33,14 +33,22 @@ impl Color {
         Color { r: r, g: g, b: b}
     }
 
-    // TODO: Make this work in a gamma-correct way
     pub fn lerp(&self, other: Color, position: f32) -> Color {
         assert!(position >= 0.0 && position <= 1.0);
-        let opposite = 1.0 - position;
+
+        // Interpolate two color components in a gamma-correct way
+        fn gamma_interpolate(a: u8, b: u8, position: f32) -> u8 {
+            let gamma = 2.2;
+            let a_linear = (a as f32).powf(gamma);
+            let b_linear = (b as f32).powf(gamma);
+            let lerp = a_linear.lerp(b_linear, position);
+            lerp.powf(1.0/gamma).round() as u8
+        }
+
         Color {
-            r: ((self.r as f32)*opposite + (other.r as f32)*position).round() as u8,
-            g: ((self.g as f32)*opposite + (other.g as f32)*position).round() as u8,
-            b: ((self.b as f32)*opposite + (other.b as f32)*position).round() as u8
+            r: gamma_interpolate(self.r, other.r, position),
+            g: gamma_interpolate(self.g, other.g, position),
+            b: gamma_interpolate(self.b, other.b, position)
         }
     }
 }
@@ -130,11 +138,12 @@ mod tests {
 
     #[test]
     fn test_color_lerp() {
-        let a = Color::new(0, 0, 0);
-        let b = Color::new(128, 128, 128);
-        assert_eq!(a, a.lerp(b, 0.0));
-        assert_eq!(Color::new(64, 64, 64), a.lerp(b, 0.5));
-        assert_eq!(b, a.lerp(b, 1.0));
+        let a = Color::new(255, 0, 0);
+        let b = Color::new(186, 186, 0); // gamma-correct midpoint for gamma = 2.2
+        let c = Color::new(0, 255, 0);
+        assert_eq!(a, a.lerp(c, 0.0));
+        assert_eq!(b, a.lerp(c, 0.5));
+        assert_eq!(c, a.lerp(c, 1.0));
     }
 
     #[test]
@@ -153,31 +162,34 @@ mod tests {
           * +----+--------+-----+
           * 0   0.2      0.7    1
           */
-        let a = ControlPoint::new(60, 0, 0, 0.0);
-        let b = ControlPoint::new(0, 60, 0, 0.2);
-        let c = ControlPoint::new(0, 0, 60, 0.7);
+        let color_a = Color::new(60, 0, 0);
+        let color_b = Color::new(0, 60, 0);
+        let color_c = Color::new(0, 0, 60);
+        let a = ControlPoint { color: color_a, position: 0.0 };
+        let b = ControlPoint { color: color_b, position: 0.2 };
+        let c = ControlPoint { color: color_c, position: 0.7 };
 
         // Test interval starting at 0.0/1.0
-        assert_eq!(a.lerp(b, 0.0), Color::new(60, 0, 0));
-        assert_eq!(a.lerp(b, 0.1), Color::new(30, 30, 0));
-        assert_eq!(a.lerp(b, 0.2), Color::new(0, 60, 0));
+        assert_eq!(a.lerp(b, 0.0), color_a);
+        assert_eq!(a.lerp(b, 0.1), color_a.lerp(color_b, 0.5));
+        assert_eq!(a.lerp(b, 0.2), color_b);
 
         // Test middle interval
-        assert_eq!(b.lerp(c, 0.2), Color::new(0, 60, 0));
-        assert_eq!(b.lerp(c, 0.3), Color::new(0, 48, 12));
-        assert_eq!(b.lerp(c, 0.7), Color::new(0, 0, 60));
+        assert_eq!(b.lerp(c, 0.2), color_b);
+        assert_eq!(b.lerp(c, 0.3), color_b.lerp(color_c, 0.2));
+        assert_eq!(b.lerp(c, 0.7), color_c);
 
         // Test interval ending at 0.0/1.0
-        assert_eq!(c.lerp(a, 0.7), Color::new(0, 0, 60));
-        assert_eq!(c.lerp(a, 0.8), Color::new(20, 0, 40));
-        assert_eq!(c.lerp(a, 1.0), Color::new(60, 0, 0));
+        assert_eq!(c.lerp(a, 0.7), color_c);
+        assert_eq!(c.lerp(a, 0.8), color_c.lerp(color_a, 1.0/3.0));
+        assert_eq!(c.lerp(a, 1.0), color_a);
 
         // Test interval crossing 0.0/1.0
-        assert_eq!(c.lerp(b, 0.7), Color::new(0, 0, 60));
-        assert_eq!(c.lerp(b, 0.8), Color::new(0, 12, 48));
-        assert_eq!(c.lerp(b, 0.0), Color::new(0, 36, 24));
-        assert_eq!(c.lerp(b, 0.1), Color::new(0, 48, 12));
-        assert_eq!(c.lerp(b, 0.2), Color::new(0, 60, 0));
+        assert_eq!(c.lerp(b, 0.7), color_c);
+        assert_eq!(c.lerp(b, 0.8), color_c.lerp(color_b, 0.2));
+        assert_eq!(c.lerp(b, 0.0), color_c.lerp(color_b, 0.6));
+        assert_eq!(c.lerp(b, 0.1), color_c.lerp(color_b, 0.8));
+        assert_eq!(c.lerp(b, 0.2), color_b);
     }
 
     #[test]
@@ -208,10 +220,12 @@ mod tests {
 
     #[test]
     fn test_subgradient_color_at() {
+        let c1 = Color::new(60, 0, 0);
+        let c2 = Color::new(0, 60, 0);
         let s = Subgradient::new(
-            ControlPoint::new(60, 0, 0, 0.8),
-            ControlPoint::new(0, 60, 0, 0.3),
+            ControlPoint { color: c1, position: 0.8 },
+            ControlPoint { color: c2, position: 0.3 }
         );
-        assert_eq!(s.color_at(0.1), Color::new(24, 36, 0));
+        assert_eq!(s.color_at(0.1), c1.lerp(c2, 3.0/5.0));
     }
 }
