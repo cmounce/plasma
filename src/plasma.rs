@@ -5,30 +5,30 @@ use sdl2::render::Renderer;
 use sdl2::render::Texture;
 use std::f32;
 
-// TODO: Pass these as parameters instead of as constants
-const WIDTH: u32 = 640;
-const HEIGHT: u32 = 480;
-
 // TODO: Add methods for approving/rejecting the current pattern/color
 pub struct Plasma {
     color_mapper: ColorMapper,
     texture: Texture,
     pixel_data: Vec<u8>,
+    width: u32,
+    height: u32,
     time: f32
 }
 
 impl Plasma {
-    pub fn new(renderer: &mut Renderer) -> Plasma {
+    pub fn new(renderer: &mut Renderer, width: u32, height: u32) -> Plasma {
         Plasma {
             color_mapper: ColorMapper::new(),
-            texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, WIDTH, HEIGHT).unwrap(),
-            pixel_data: vec![0; (WIDTH*HEIGHT*3) as usize],
-            time: 0.0
+            texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, width, height).unwrap(),
+            pixel_data: vec![0; (width*height*3) as usize],
+            time: 0.0,
+            width: width,
+            height: height
         }
     }
 
     fn plot(&mut self, x: u32, y: u32, red: u8, green: u8, blue: u8) {
-        let offset = ((x + y*WIDTH)*3) as usize;
+        let offset = ((x + y*self.width)*3) as usize;
         self.pixel_data[offset] = red;
         self.pixel_data[offset + 1] = green;
         self.pixel_data[offset + 2] = blue;
@@ -52,14 +52,14 @@ impl Plasma {
     }
 
     pub fn update(&mut self, renderer: &mut Renderer) {
-        let scale = 1.0/((WIDTH as f32).min(HEIGHT as f32));
-        for y in 0..HEIGHT {
-            for x in 0..WIDTH {
+        let scale = 1.0/((self.width as f32).min(self.height as f32));
+        for y in 0..self.height {
+            for x in 0..self.width {
                 let (r, g, b) = self.calculate_color((x as f32)*scale, (y as f32)*scale);
                 self.plot(x, y, r as u8, g as u8, b as u8);
             }
         }
-        self.texture.update(None, &self.pixel_data[..], (WIDTH*3) as usize).unwrap();
+        self.texture.update(None, &self.pixel_data[..], (self.width*3) as usize).unwrap();
         renderer.copy(&self.texture, None, None);
         renderer.present();
     }

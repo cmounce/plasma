@@ -21,7 +21,7 @@ fn main() {
     let window = video.window("plasma", WIDTH, HEIGHT).build().unwrap();
 
     let mut renderer = window.renderer().build().unwrap();
-    let mut plasma = Plasma::new(&mut renderer);
+    let mut plasma = Plasma::new(&mut renderer, WIDTH, HEIGHT);
 
     let mut running = true;
     let mut event_pump = sdl.event_pump().unwrap();
