@@ -81,10 +81,9 @@ impl ColorMapper {
         }
     }
 
-    pub fn convert(&self, value: f32) -> (u8, u8, u8) {
+    pub fn convert(&self, value: f32) -> Color {
         let index = (value.wrap()*(LOOKUP_TABLE_SIZE as f32)).floor() as usize % LOOKUP_TABLE_SIZE;
-        let color = self.lookup_table[index];
-        (color.r, color.g, color.b)
+        self.lookup_table[index]
     }
 }
 

@@ -31,7 +31,7 @@ struct Chromosome {
 }
 
 #[derive(Clone,Debug,Eq,PartialEq)]
-struct Genome {
+pub struct Genome {
     pattern: Chromosome,
     color: Chromosome
 }
