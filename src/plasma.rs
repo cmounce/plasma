@@ -8,13 +8,17 @@ use sdl2::render::Renderer;
 use sdl2::render::Texture;
 use std::f32;
 
+struct Image {
+    width: usize,
+    height: usize,
+    pixel_data: Vec<u8>
+}
+
 // TODO: Add methods for approving/rejecting the current pattern/color
 pub struct Plasma {
+    image: Image,
     renderer: PlasmaRenderer,
     texture: Texture,
-    pixel_data: Vec<u8>,
-    width: u32,
-    height: u32,
     time: f32
 }
 
@@ -22,23 +26,38 @@ struct PlasmaRenderer {
     color_mapper: ColorMapper
 }
 
+impl Image{
+    fn new(width: usize, height: usize) -> Image {
+        Image {
+            width: width,
+            height: height,
+            pixel_data: vec![0; width*height*3]
+        }
+    }
+
+    fn plot(&mut self, x: usize, y: usize, color: Color) {
+        let offset = (x + y*self.width)*3;
+        self.pixel_data[offset] = color.r;
+        self.pixel_data[offset + 1] = color.g;
+        self.pixel_data[offset + 2] = color.b;
+    }
+}
+
 impl Plasma {
     pub fn new(renderer: &mut Renderer, width: u32, height: u32) -> Plasma {
         Plasma {
             renderer: PlasmaRenderer::new(),
             texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, width, height).unwrap(),
-            pixel_data: vec![0; (width*height*3) as usize],
-            time: 0.0,
-            width: width,
-            height: height
+            image: Image::new(width as usize, height as usize),
+            time: 0.0
         }
     }
 
-    pub fn update(&mut self, renderer: &mut Renderer) {
-        self.renderer.render(&mut self.pixel_data[..], self.width as usize, self.height as usize, self.time);
-        self.texture.update(None, &self.pixel_data[..], (self.width*3) as usize).unwrap();
-        renderer.copy(&self.texture, None, None);
-        renderer.present();
+    pub fn update(&mut self, sdl_renderer: &mut Renderer) {
+        self.renderer.render(&mut self.image, self.time);
+        self.texture.update(None, &self.image.pixel_data[..], (self.image.width*3) as usize).unwrap();
+        sdl_renderer.copy(&self.texture, None, None);
+        sdl_renderer.present();
     }
 
     pub fn add_time(&mut self, time: f32) {
@@ -53,14 +72,13 @@ impl PlasmaRenderer {
         }
     }
 
-    fn render(&self, pixel_data: &mut [u8], width: usize, height: usize, time: f32) {
-        // TODO: Add some kind of image type that has pixel data, width, height
-        let scale = 1.0/((width as f32).min(height as f32));
+    fn render(&self, image: &mut Image, time: f32) {
+        let scale = 1.0/((image.width as f32).min(image.height as f32));
         let adj_time = time; // TODO: convert to use time.wrap();
-        for y in 0..height {
-            for x in 0..width {
+        for y in 0..image.height {
+            for x in 0..image.width {
                 let color = self.calculate_color(x as f32 * scale, y as f32 * scale, adj_time);
-                self.plot(pixel_data, width, height, x, y, color);
+                image.plot(x, y, color);
             }
         }
     }
@@ -77,13 +95,6 @@ impl PlasmaRenderer {
         value += ((dx*dx + dy*dy).sqrt()/290.0 + time/10.0).wave();
 
         self.color_mapper.convert(value)
-    }
-
-    fn plot(&self, pixel_data: &mut [u8], width: usize, height: usize, x: usize, y: usize, color: Color) {
-        let offset = (x + y*width)*3;
-        pixel_data[offset] = color.r;
-        pixel_data[offset + 1] = color.g;
-        pixel_data[offset + 2] = color.b;
     }
 }
 
