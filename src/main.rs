@@ -34,7 +34,8 @@ fn main() {
         plasma.update(&mut renderer);
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit {..} => {running = false; break},
+                Event::Quit {..} => { running = false; break },
+                Event::KeyDown {..} => { plasma.reject(); },
                 _ => ()
             }
         }

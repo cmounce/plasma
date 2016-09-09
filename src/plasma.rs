@@ -1,7 +1,6 @@
 use colormapper::ColorMapper;
 use fastmath::FastMath;
-use genetics::Gene;
-use genetics::Genome;
+use genetics::Chromosome;
 use gradient::Color;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::Renderer;
@@ -63,12 +62,17 @@ impl Plasma {
     pub fn add_time(&mut self, time: f32) {
         self.time += time;
     }
+
+    pub fn reject(&mut self) {
+        self.renderer = PlasmaRenderer::new();
+    }
 }
 
 impl PlasmaRenderer {
     fn new() -> PlasmaRenderer {
+        let c = Chromosome::rand(10, 5);
         PlasmaRenderer {
-            color_mapper: ColorMapper::new()
+            color_mapper: ColorMapper::new(&c)
         }
     }
 

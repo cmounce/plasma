@@ -1,5 +1,5 @@
 use fastmath::FastMath;
-use genetics::Gene;
+use genetics::{Chromosome, Gene};
 use gradient::{Color, ControlPoint, Gradient};
 
 const LOOKUP_TABLE_SIZE: usize = 256;
@@ -56,12 +56,11 @@ pub struct ColorMapper {
 }
 
 impl ColorMapper {
-    pub fn new() -> ColorMapper {
+    pub fn new(chromosome: &Chromosome) -> ColorMapper {
         let mut lookup_table = [Color {r:0, g:0, b:0}; LOOKUP_TABLE_SIZE];
         let mut control_points = vec![];
-        for _ in 0..10 {
-            let g = Gene::rand(5);
-            if let Some(cp) = ControlPoint::from_gene(&g) {
+        for gene in chromosome.genes.iter() {
+            if let Some(cp) = ControlPoint::from_gene(&gene) {
                 control_points.push(cp);
             }
         }

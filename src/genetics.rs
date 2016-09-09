@@ -26,8 +26,8 @@ pub struct Gene {
 }
 
 #[derive(Clone,Debug,Eq,PartialEq)]
-struct Chromosome {
-    genes: Vec<Gene>
+pub struct Chromosome {
+    pub genes: Vec<Gene>
 }
 
 #[derive(Clone,Debug,Eq,PartialEq)]
@@ -99,7 +99,7 @@ impl Gene {
 }
 
 impl Chromosome {
-    fn rand(num_genes: usize, gene_size: usize) -> Chromosome {
+    pub fn rand(num_genes: usize, gene_size: usize) -> Chromosome {
         let mut c = Chromosome { genes: vec![] };
         for _ in 0..num_genes {
             c.genes.push(Gene::rand(gene_size));
