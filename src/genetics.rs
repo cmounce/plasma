@@ -32,11 +32,11 @@ pub struct Chromosome {
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct Genome {
-    pattern: Chromosome,
-    color: Chromosome
+    pub pattern: Chromosome,
+    pub color: Chromosome
 }
 
-struct Population {
+pub struct Population {
     genomes: VecDeque<Genome>,
     max_size: usize
 }
@@ -124,7 +124,7 @@ impl Chromosome {
 }
 
 impl Genome {
-    fn breed(&self, other: &Genome) -> Genome {
+    pub fn breed(&self, other: &Genome) -> Genome {
         Genome {
             pattern: self.pattern.breed(&other.pattern),
             color: self.color.breed(&other.color)
@@ -133,21 +133,21 @@ impl Genome {
 }
 
 impl Population {
-    fn new(max_size: usize) -> Population {
+    pub fn new(max_size: usize) -> Population {
         Population {
             genomes: VecDeque::with_capacity(max_size),
             max_size: max_size
         }
     }
 
-    fn add(&mut self, genome: Genome) {
+    pub fn add(&mut self, genome: Genome) {
         self.genomes.push_back(genome);
         if self.genomes.len() > self.max_size {
             self.genomes.pop_front();
         }
     }
 
-    fn get_pair(&self) -> Option<(&Genome, &Genome)> {
+    pub fn get_pair(&self) -> Option<(&Genome, &Genome)> {
         let num_genomes = self.genomes.len();
         if num_genomes < 2 {
             None

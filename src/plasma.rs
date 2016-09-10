@@ -1,11 +1,13 @@
 use colormapper::ColorMapper;
 use fastmath::FastMath;
-use genetics::Chromosome;
+use genetics::{Chromosome,Genome,Population};
 use gradient::Color;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::Renderer;
 use sdl2::render::Texture;
 use std::f32;
+
+const POPULATION_SIZE: usize = 8;
 
 struct Image {
     width: usize,
@@ -13,15 +15,16 @@ struct Image {
     pixel_data: Vec<u8>
 }
 
-// TODO: Add methods for approving/rejecting the current pattern/color
 pub struct Plasma {
     image: Image,
     renderer: PlasmaRenderer,
+    population: Population,
     texture: Texture,
     time: f32
 }
 
 struct PlasmaRenderer {
+    genome: Genome,
     color_mapper: ColorMapper
 }
 
@@ -44,10 +47,21 @@ impl Image{
 
 impl Plasma {
     pub fn new(renderer: &mut Renderer, width: u32, height: u32) -> Plasma {
+        fn rand_genome() -> Genome {
+            Genome {
+                pattern: Chromosome::rand(1, 1),
+                color: Chromosome::rand(10, 5)
+            }
+        }
+        let mut population = Population::new(POPULATION_SIZE);
+        for _ in 0..POPULATION_SIZE {
+            population.add(rand_genome());
+        }
         Plasma {
-            renderer: PlasmaRenderer::new(),
-            texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, width, height).unwrap(),
             image: Image::new(width as usize, height as usize),
+            population: population,
+            renderer: PlasmaRenderer::new(rand_genome()),
+            texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, width, height).unwrap(),
             time: 0.0
         }
     }
@@ -63,16 +77,29 @@ impl Plasma {
         self.time += time;
     }
 
+    pub fn approve(&mut self) {
+        self.population.add(self.renderer.genome.clone());
+        self.breed();
+    }
+
     pub fn reject(&mut self) {
-        self.renderer = PlasmaRenderer::new();
+        self.breed();
+    }
+
+    fn breed(&mut self) {
+        if let Some((g1, g2)) = self.population.get_pair() {
+            let child = g1.breed(g2);
+            self.renderer = PlasmaRenderer::new(child);
+        }
     }
 }
 
 impl PlasmaRenderer {
-    fn new() -> PlasmaRenderer {
-        let c = Chromosome::rand(10, 5);
+    fn new(genome: Genome) -> PlasmaRenderer {
+        let color_mapper = ColorMapper::new(&genome.color);
         PlasmaRenderer {
-            color_mapper: ColorMapper::new(&c)
+            genome: genome,
+            color_mapper: color_mapper
         }
     }
 

@@ -7,6 +7,7 @@ mod gradient;
 mod plasma;
 
 use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 use std::cmp;
 use std::f32;
 use std::time::SystemTime;
@@ -35,7 +36,17 @@ fn main() {
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} => { running = false; break },
-                Event::KeyDown {..} => { plasma.reject(); },
+                Event::KeyDown { keycode: Some(keycode), ..} => {
+                    match keycode {
+                        Keycode::Equals | Keycode::Plus | Keycode::KpPlus => {
+                            plasma.approve();
+                        },
+                        Keycode::Minus | Keycode::Underscore | Keycode::KpMinus => {
+                            plasma.reject();
+                        },
+                        _ => ()
+                    }
+                },
                 _ => ()
             }
         }
