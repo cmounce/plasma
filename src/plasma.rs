@@ -5,7 +5,7 @@ use gradient::Color;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::Renderer;
 use sdl2::render::Texture;
-use std::f32;
+use std::{f32,mem};
 
 const POPULATION_SIZE: usize = 8;
 
@@ -78,18 +78,22 @@ impl Plasma {
     }
 
     pub fn approve(&mut self) {
-        self.population.add(self.renderer.genome.clone());
-        self.breed();
+        let old_genome = self.replace_renderer();
+        self.population.add(old_genome);
     }
 
     pub fn reject(&mut self) {
-        self.breed();
+        self.replace_renderer();
     }
 
-    fn breed(&mut self) {
+    fn replace_renderer(&mut self) -> Genome {
         if let Some((g1, g2)) = self.population.get_pair() {
             let child = g1.breed(g2);
-            self.renderer = PlasmaRenderer::new(child);
+            let new_renderer = PlasmaRenderer::new(child);
+            let old_renderer = mem::replace(&mut self.renderer, new_renderer);
+            old_renderer.genome
+        } else {
+            panic!("Could not get a breeding pair from population struct");
         }
     }
 }
