@@ -3,6 +3,7 @@ use genetics::{Chromosome, Gene};
 use gradient::{Color, ControlPoint, Gradient};
 
 const LOOKUP_TABLE_SIZE: usize = 256;
+pub const CONTROL_POINT_GENE_SIZE: usize = 5;
 
 impl Color {
     fn from_hsv(hue: f32, saturation: f32, value: f32) -> Color {
@@ -34,7 +35,7 @@ impl Color {
 
 impl ControlPoint {
     fn from_gene(gene: &Gene) -> Option<ControlPoint> {
-        assert!(gene.data.len() == 5);
+        assert!(gene.data.len() == CONTROL_POINT_GENE_SIZE);
         let activation_threshold = 160;
         if gene.data[0] > activation_threshold {
             let h = (gene.data[1] as f32)/256.0; // disallow h = 1.0 (wraps to 0.0)

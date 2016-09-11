@@ -1,4 +1,4 @@
-use colormapper::ColorMapper;
+use colormapper::{ColorMapper,CONTROL_POINT_GENE_SIZE};
 use fastmath::FastMath;
 use genetics::{Chromosome,Genome,Population};
 use gradient::Color;
@@ -50,7 +50,7 @@ impl Plasma {
         fn rand_genome() -> Genome {
             Genome {
                 pattern: Chromosome::rand(1, 1),
-                color: Chromosome::rand(10, 5)
+                color: Chromosome::rand(10, CONTROL_POINT_GENE_SIZE)
             }
         }
         let mut population = Population::new(POPULATION_SIZE);
