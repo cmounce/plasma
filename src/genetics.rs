@@ -17,7 +17,7 @@ use self::rand::distributions::{Exp, IndependentSample, Normal};
  * - Genes are byte vectors.
  */
 
-const MUTATION_RATE: f64 = 0.01;
+const MUTATION_RATE: f64 = 0.03;
 const MUTATION_STD_DEV: f64 = 32.0;
 
 #[derive(Clone,Debug,Eq,PartialEq)]
