@@ -7,7 +7,8 @@ use sdl2::render::Renderer;
 use sdl2::render::Texture;
 use std::{f32,mem};
 
-const POPULATION_SIZE: usize = 8;
+const STARTING_POPULATION_SIZE: usize = 8;
+const MAX_POPULATION_SIZE: usize = 32;
 
 struct Image {
     width: usize,
@@ -53,8 +54,8 @@ impl Plasma {
                 color: Chromosome::rand(10, CONTROL_POINT_GENE_SIZE)
             }
         }
-        let mut population = Population::new(POPULATION_SIZE);
-        for _ in 0..POPULATION_SIZE {
+        let mut population = Population::new(MAX_POPULATION_SIZE);
+        for _ in 0..STARTING_POPULATION_SIZE {
             population.add(rand_genome());
         }
         Plasma {
