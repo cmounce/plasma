@@ -68,7 +68,7 @@ impl Plasma {
     }
 
     pub fn update(&mut self, sdl_renderer: &mut Renderer) {
-        self.renderer.render(&mut self.image, self.time);
+        self.renderer.render(&mut self.image, self.time/60.0);
         self.texture.update(None, &self.image.pixel_data[..], (self.image.width*3) as usize).unwrap();
         sdl_renderer.copy(&self.texture, None, None);
         sdl_renderer.present();
@@ -109,8 +109,9 @@ impl PlasmaRenderer {
     }
 
     fn render(&self, image: &mut Image, time: f32) {
+        // TODO: Scale viewport to (-1.0, 1.0) instead of (0, 1)
         let scale = 1.0/((image.width as f32).min(image.height as f32));
-        let adj_time = time; // TODO: convert to use time.wrap();
+        let adj_time = time.wrap();
         for y in 0..image.height {
             for x in 0..image.width {
                 let color = self.calculate_color(x as f32 * scale, y as f32 * scale, adj_time);
@@ -120,15 +121,30 @@ impl PlasmaRenderer {
     }
 
     fn calculate_color(&self, x: f32, y: f32, time: f32) -> Color {
-        let x_adj = x*200.0;
-        let y_adj = y*200.0;
+        // TODO: Maybe precalc time*consts, wave(time*const)?
+        let i = [4.0, 5.0, -2.0, 3.0, 2.0, 7.0, 6.0, -3.0];
+        let f = [3.7, 2.3, 1.6, 4.5, 1.3];
 
         let mut value = 0.0;
-        value += ((x_adj/23.0 + time)/10.0).wave();
-        value += ((x_adj/13.0 + (y_adj/17.0)*(time/20.0).wave() )/10.0).wave();
-        let dx = (time/19.0).wave()*75.0 + 100.0 - x_adj;
-        let dy = (time/31.0 + 0.5).wave()*75.0 + 100.0 - y_adj;
-        value += ((dx*dx + dy*dy).sqrt()/290.0 + time/10.0).wave();
+
+        // Wave moving left-right
+        value += (f[0]*x + i[0]*time).wave();
+
+        // Wave moving up-down
+        // TODO: Maybe have one fixed wave, but fixed at a parameterized angle?
+        value += (f[1]*y + i[1]*time).wave();
+
+        // Tilting wave
+        value += (
+            f[2]*(
+                x*(i[2]*time).cowave() + y*(i[3]*time).wave()
+            ) + i[4]*time
+        ).wave();
+
+        // Circular wave
+        let dx = x - (i[5]*time).cowave().mul_add(0.5, 0.5);
+        let dy = y - (i[6]*time).wave().mul_add(0.5, 0.5);
+        value += (f[3]*(dx*dx + dy*dy + 0.1).sqrt() + i[7]*time).cowave();
 
         self.color_mapper.convert(value)
     }

@@ -2,6 +2,7 @@ use std::f32;
 
 pub trait FastMath<F> {
     fn wave(&self) -> F;
+    fn cowave(&self) -> F;
     fn wrap(&self) -> F;
     fn lerp(&self, other: F, position: F) -> F;
     fn clamp(&self, lower: F, upper: F) -> F;
@@ -28,6 +29,12 @@ impl FastMath<f32> for f32 {
          * Having one x and one x.abs() flips the parabola upside-down when x is negative.
          */
         x * x.abs().mul_add(16.0, -8.0)
+    }
+
+    // Like cos(), except with a period of 1
+    #[inline]
+    fn cowave(&self) -> f32 {
+        (self + 0.25).wave()
     }
 
     // Wraps a value onto the interval [0.0, 1.0).
@@ -84,6 +91,14 @@ mod tests {
         assert_feq!((-7.5).wave(), 0.0);
         assert_feq!((-7.25).wave(), -1.0);
         assert_feq!((-7.0).wave(), 0.0);
+    }
+
+    #[test]
+    fn test_cowave() {
+        assert_feq!((0.0).cowave(), 1.0);
+        assert_feq!((0.25).cowave(), 0.0);
+        assert_feq!((0.5).cowave(), -1.0);
+        assert_feq!((0.75).cowave(), 0.0);
     }
 
     #[test]
