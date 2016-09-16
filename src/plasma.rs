@@ -109,12 +109,18 @@ impl PlasmaRenderer {
     }
 
     fn render(&self, image: &mut Image, time: f32) {
-        // TODO: Scale viewport to (-1.0, 1.0) instead of (0, 1)
-        let scale = 1.0/((image.width as f32).min(image.height as f32));
+        // Scale screen coordinates so the smaller dimension ranges from -1.0 to 1.0
+        let scale_mul = 2.0/((image.width as f32).min(image.height as f32));
+        let scale_x_offset = -(image.width as f32)/2.0*scale_mul;
+        let scale_y_offset = -(image.height as f32)/2.0*scale_mul;
         let adj_time = time.wrap();
         for y in 0..image.height {
             for x in 0..image.width {
-                let color = self.calculate_color(x as f32 * scale, y as f32 * scale, adj_time);
+                let color = self.calculate_color(
+                    (x as f32).mul_add(scale_mul, scale_x_offset),
+                    (y as f32).mul_add(scale_mul, scale_y_offset),
+                    adj_time
+                );
                 image.plot(x, y, color);
             }
         }
@@ -142,8 +148,8 @@ impl PlasmaRenderer {
         ).wave();
 
         // Circular wave
-        let dx = x - (i[5]*time).cowave().mul_add(0.5, 0.5);
-        let dy = y - (i[6]*time).wave().mul_add(0.5, 0.5);
+        let dx = x - (i[5]*time).cowave();
+        let dy = y - (i[6]*time).wave();
         value += (f[3]*(dx*dx + dy*dy + 0.1).sqrt() + i[7]*time).cowave();
 
         self.color_mapper.convert(value)
