@@ -128,29 +128,27 @@ impl PlasmaRenderer {
 
     fn calculate_color(&self, x: f32, y: f32, time: f32) -> Color {
         // TODO: Maybe precalc time*consts, wave(time*const)?
-        let i = [4.0, 5.0, -2.0, 3.0, 2.0, 7.0, 6.0, -3.0];
+        let i = [4.0, 5.0, -2.0, 3.0, 2.0, 7.0, 6.0];
         let f = [3.7, 2.3, 1.6, 4.5, 1.3];
 
         let mut value = 0.0;
 
-        // Wave moving left-right
-        value += (f[0]*x + i[0]*time).wave();
-
-        // Wave moving up-down
-        // TODO: Maybe have one fixed wave, but fixed at a parameterized angle?
-        value += (f[1]*y + i[1]*time).wave();
+        // Fixed wave
+        value += (
+            f[2]*(x*f[0].cowave() + y*f[1].wave()) + i[0]*time
+        ).wave();
 
         // Tilting wave
         value += (
-            f[2]*(
-                x*(i[2]*time).cowave() + y*(i[3]*time).wave()
-            ) + i[4]*time
+            f[3]*(
+                x*(i[1]*time).cowave() + y*(i[2]*time).wave()
+            ) + i[3]*time
         ).wave();
 
         // Circular wave
-        let dx = x - (i[5]*time).cowave();
-        let dy = y - (i[6]*time).wave();
-        value += (f[3]*(dx*dx + dy*dy + 0.1).sqrt() + i[7]*time).cowave();
+        let dx = x - (i[4]*time).cowave();
+        let dy = y - (i[5]*time).wave();
+        value += (f[4]*(dx*dx + dy*dy + 0.1).sqrt() + i[6]*time).cowave();
 
         self.color_mapper.convert(value)
     }
