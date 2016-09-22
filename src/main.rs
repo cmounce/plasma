@@ -2,6 +2,7 @@ extern crate sdl2;
 
 mod colormapper;
 mod fastmath;
+mod formulas;
 mod genetics;
 mod gradient;
 mod plasma;

@@ -153,8 +153,3 @@ impl PlasmaRenderer {
         self.color_mapper.convert(value)
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-}
