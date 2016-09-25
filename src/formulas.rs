@@ -1,4 +1,7 @@
-use genetics::Gene;
+use genetics::{Gene, Chromosome};
+
+const FORMULA_GENE_SIZE: usize = 4;
+const NUM_FORMULA_GENES: usize = 3;
 
 // TODO: Figure out how to store precomputed values
 // TODO: Write inline fns for calculating plasma at (x, y)
@@ -63,12 +66,23 @@ impl RotatingWaveFormula {
 
 impl CircularWaveFormula {
     fn from_gene(gene: &Gene) -> CircularWaveFormula {
-        assert!(gene.data.len() == 4);
+        assert!(gene.data.len() == FORMULA_GENE_SIZE);
         CircularWaveFormula {
             x_time: byte_to_ifloat(gene.data[0]),
             y_time: byte_to_ifloat(gene.data[1]),
             scale: byte_to_float(gene.data[2]),
             wave_speed: byte_to_ifloat(gene.data[3])
+        }
+    }
+}
+
+impl PlasmaFormulas {
+    fn from_chromosome(c: &Chromosome) -> PlasmaFormulas {
+        assert!(c.genes.len() == NUM_FORMULA_GENES);
+        PlasmaFormulas {
+            wave: WaveFormula::from_gene(&c.genes[0]),
+            rotating_wave: RotatingWaveFormula::from_gene(&c.genes[1]),
+            circular_wave: CircularWaveFormula::from_gene(&c.genes[2])
         }
     }
 }
