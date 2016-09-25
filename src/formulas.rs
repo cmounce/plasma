@@ -1,13 +1,13 @@
 use genetics::{Gene, Chromosome};
+use fastmath::FastMath;
 
 const FORMULA_GENE_SIZE: usize = 4;
 const NUM_FORMULA_GENES: usize = 3;
 
 // TODO: Figure out how to store precomputed values
-// TODO: Write inline fns for calculating plasma at (x, y)
 struct WaveFormula {
-    x_stretch: f32,
-    y_stretch: f32,
+    x_scale: f32,
+    y_scale: f32,
     scale: f32,
     wave_speed: f32
 }
@@ -44,11 +44,18 @@ impl WaveFormula {
     fn from_gene(gene: &Gene) -> WaveFormula {
         assert!(gene.data.len() == 4);
         WaveFormula {
-            x_stretch: byte_to_float(gene.data[0]),
-            y_stretch: byte_to_float(gene.data[1]),
+            x_scale: byte_to_float(gene.data[0]),
+            y_scale: byte_to_float(gene.data[1]),
             scale: byte_to_float(gene.data[2]),
             wave_speed: byte_to_ifloat(gene.data[3])
         }
+    }
+
+    #[inline]
+    fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
+        let x_factor = self.x_scale.cowave();
+        let y_factor = self.y_scale.wave();
+        (self.scale*(x*x_factor + y*y_factor) + self.wave_speed*time).wave()
     }
 }
 
@@ -62,6 +69,13 @@ impl RotatingWaveFormula {
             wave_speed: byte_to_ifloat(gene.data[3])
         }
     }
+
+    #[inline]
+    fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
+        let x_factor = (self.x_time*time).cowave();
+        let y_factor = (self.y_time*time).wave();
+        (self.scale*(x*x_factor + y*y_factor) + self.wave_speed*time).wave()
+    }
 }
 
 impl CircularWaveFormula {
@@ -73,6 +87,13 @@ impl CircularWaveFormula {
             scale: byte_to_float(gene.data[2]),
             wave_speed: byte_to_ifloat(gene.data[3])
         }
+    }
+
+    #[inline]
+    fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
+        let dx = x - (self.x_time*time).cowave();
+        let dy = y - (self.y_time*time).wave();
+        (self.scale*(dx*dx + dy*dy + 0.1).sqrt() + self.wave_speed*time).wave()
     }
 }
 
