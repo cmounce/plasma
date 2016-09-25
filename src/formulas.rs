@@ -1,8 +1,8 @@
 use genetics::{Gene, Chromosome};
 use fastmath::FastMath;
 
-const FORMULA_GENE_SIZE: usize = 4;
-const NUM_FORMULA_GENES: usize = 3;
+pub const FORMULA_GENE_SIZE: usize = 4;
+pub const NUM_FORMULA_GENES: usize = 3;
 
 // TODO: Figure out how to store precomputed values
 struct WaveFormula {
@@ -26,7 +26,7 @@ struct CircularWaveFormula {
     wave_speed: f32
 }
 
-struct PlasmaFormulas {
+pub struct PlasmaFormulas {
     wave: WaveFormula,
     rotating_wave: RotatingWaveFormula,
     circular_wave: CircularWaveFormula
@@ -52,7 +52,7 @@ impl WaveFormula {
     }
 
     #[inline]
-    fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
+    pub fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
         let x_factor = self.x_scale.cowave();
         let y_factor = self.y_scale.wave();
         (self.scale*(x*x_factor + y*y_factor) + self.wave_speed*time).wave()
@@ -71,7 +71,7 @@ impl RotatingWaveFormula {
     }
 
     #[inline]
-    fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
+    pub fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
         let x_factor = (self.x_time*time).cowave();
         let y_factor = (self.y_time*time).wave();
         (self.scale*(x*x_factor + y*y_factor) + self.wave_speed*time).wave()
@@ -90,7 +90,7 @@ impl CircularWaveFormula {
     }
 
     #[inline]
-    fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
+    pub fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
         let dx = x - (self.x_time*time).cowave();
         let dy = y - (self.y_time*time).wave();
         (self.scale*(dx*dx + dy*dy + 0.1).sqrt() + self.wave_speed*time).wave()
@@ -98,13 +98,19 @@ impl CircularWaveFormula {
 }
 
 impl PlasmaFormulas {
-    fn from_chromosome(c: &Chromosome) -> PlasmaFormulas {
+    pub fn from_chromosome(c: &Chromosome) -> PlasmaFormulas {
         assert!(c.genes.len() == NUM_FORMULA_GENES);
         PlasmaFormulas {
             wave: WaveFormula::from_gene(&c.genes[0]),
             rotating_wave: RotatingWaveFormula::from_gene(&c.genes[1]),
             circular_wave: CircularWaveFormula::from_gene(&c.genes[2])
         }
+    }
+
+    pub fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
+        self.wave.get_value(x, y, time) +
+            self.rotating_wave.get_value(x, y, time) +
+            self.circular_wave.get_value(x, y, time)
     }
 }
 

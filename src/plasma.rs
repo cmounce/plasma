@@ -1,5 +1,6 @@
 use colormapper::{ColorMapper,CONTROL_POINT_GENE_SIZE};
 use fastmath::FastMath;
+use formulas::{NUM_FORMULA_GENES,FORMULA_GENE_SIZE,PlasmaFormulas};
 use genetics::{Chromosome,Genome,Population};
 use gradient::Color;
 use sdl2::pixels::PixelFormatEnum;
@@ -26,6 +27,7 @@ pub struct Plasma {
 
 struct PlasmaRenderer {
     genome: Genome,
+    formulas: PlasmaFormulas,
     color_mapper: ColorMapper
 }
 
@@ -50,7 +52,7 @@ impl Plasma {
     pub fn new(renderer: &mut Renderer, width: u32, height: u32) -> Plasma {
         fn rand_genome() -> Genome {
             Genome {
-                pattern: Chromosome::rand(1, 1),
+                pattern: Chromosome::rand(NUM_FORMULA_GENES, FORMULA_GENE_SIZE),
                 color: Chromosome::rand(10, CONTROL_POINT_GENE_SIZE)
             }
         }
@@ -102,8 +104,10 @@ impl Plasma {
 impl PlasmaRenderer {
     fn new(genome: Genome) -> PlasmaRenderer {
         let color_mapper = ColorMapper::new(&genome.color);
+        let formulas = PlasmaFormulas::from_chromosome(&genome.pattern);
         PlasmaRenderer {
             genome: genome,
+            formulas: formulas,
             color_mapper: color_mapper
         }
     }
@@ -127,29 +131,7 @@ impl PlasmaRenderer {
     }
 
     fn calculate_color(&self, x: f32, y: f32, time: f32) -> Color {
-        // TODO: Maybe precalc time*consts, wave(time*const)?
-        let i = [4.0, 5.0, -2.0, 3.0, 2.0, 7.0, 6.0];
-        let f = [3.7, 2.3, 1.6, 4.5, 1.3];
-
-        let mut value = 0.0;
-
-        // Fixed wave
-        value += (
-            f[2]*(x*f[0].cowave() + y*f[1].wave()) + i[0]*time
-        ).wave();
-
-        // Tilting wave
-        value += (
-            f[3]*(
-                x*(i[1]*time).cowave() + y*(i[2]*time).wave()
-            ) + i[3]*time
-        ).wave();
-
-        // Circular wave
-        let dx = x - (i[4]*time).cowave();
-        let dy = y - (i[5]*time).wave();
-        value += (f[4]*(dx*dx + dy*dy + 0.1).sqrt() + i[6]*time).cowave();
-
+        let value = self.formulas.get_value(x, y, time);
         self.color_mapper.convert(value)
     }
 }
