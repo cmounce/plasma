@@ -33,7 +33,7 @@ pub struct PlasmaFormulas {
 }
 
 fn byte_to_float(byte: u8) -> f32 {
-    (byte as f32)/64.0
+    (byte as f32)/255.0
 }
 
 fn byte_to_ifloat(byte: u8) -> f32 {
