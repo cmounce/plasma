@@ -9,18 +9,20 @@ mod plasma;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::event::WindowEventId;
 use std::cmp;
 use std::f32;
 use std::time::SystemTime;
 use plasma::Plasma;
 
+// Default window size
 const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
 
 fn main() {
     let sdl = sdl2::init().unwrap();
     let video = sdl.video().unwrap();
-    let window = video.window("plasma", WIDTH, HEIGHT).build().unwrap();
+    let window = video.window("plasma", WIDTH, HEIGHT).resizable().build().unwrap();
 
     let mut renderer = window.renderer().build().unwrap();
     let mut plasma = Plasma::new(&mut renderer, WIDTH, HEIGHT);
@@ -32,11 +34,9 @@ fn main() {
     while running {
         let timestamp = SystemTime::now();
 
-        // Draw plasma, process events
-        plasma.update(&mut renderer);
+        // Process events, draw plasma
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit {..} => { running = false; break },
                 Event::KeyDown { keycode: Some(keycode), ..} => {
                     match keycode {
                         Keycode::Equals | Keycode::Plus | Keycode::KpPlus => {
@@ -48,9 +48,20 @@ fn main() {
                         _ => ()
                     }
                 },
+
+                Event::Window {
+                    win_event_id: WindowEventId::Resized,
+                    data1: width,
+                    data2: height, ..
+                } => {
+                    plasma.resize(&mut renderer, width as u32, height as u32);
+                },
+
+                Event::Quit {..} => { running = false; break },
                 _ => ()
             }
         }
+        plasma.update(&mut renderer);
 
         // Manage time
         let duration = timestamp.elapsed().unwrap();

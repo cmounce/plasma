@@ -69,6 +69,11 @@ impl Plasma {
         }
     }
 
+    pub fn resize(&mut self, renderer: &mut Renderer, width: u32, height: u32) {
+        self.image = Image::new(width as usize, height as usize);
+        self.texture = renderer.create_texture_streaming(PixelFormatEnum::RGB24, width, height).unwrap();
+    }
+
     pub fn update(&mut self, sdl_renderer: &mut Renderer) {
         self.renderer.render(&mut self.image, self.time/60.0);
         self.texture.update(None, &self.image.pixel_data[..], (self.image.width*3) as usize).unwrap();
