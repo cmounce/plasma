@@ -4,6 +4,11 @@ use fastmath::FastMath;
 pub const FORMULA_GENE_SIZE: usize = 5;
 pub const NUM_FORMULA_GENES: usize = 3;
 
+trait Formula {
+    fn from_gene(gene: &Gene) -> Self;
+    fn get_value(&self, x: f32, y: f32, time: f32) -> f32;
+}
+
 // TODO: Figure out how to store precomputed values
 struct WaveFormula {
     amplitude: f32,
@@ -43,7 +48,7 @@ fn byte_to_ifloat(byte: u8) -> f32 {
     (byte as f32/255.0*16.0 - 8.0).round()
 }
 
-impl WaveFormula {
+impl Formula for WaveFormula {
     fn from_gene(gene: &Gene) -> WaveFormula {
         assert!(gene.data.len() == FORMULA_GENE_SIZE);
         WaveFormula {
@@ -56,14 +61,14 @@ impl WaveFormula {
     }
 
     #[inline]
-    pub fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
+    fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
         let x_factor = self.x_scale.cowave();
         let y_factor = self.y_scale.wave();
         (self.scale*(x*x_factor + y*y_factor) + self.wave_speed*time).wave()*self.amplitude
     }
 }
 
-impl RotatingWaveFormula {
+impl Formula for RotatingWaveFormula {
     fn from_gene(gene: &Gene) -> RotatingWaveFormula {
         assert!(gene.data.len() == FORMULA_GENE_SIZE);
         RotatingWaveFormula {
@@ -76,14 +81,14 @@ impl RotatingWaveFormula {
     }
 
     #[inline]
-    pub fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
+    fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
         let x_factor = (self.x_time*time).cowave();
         let y_factor = (self.y_time*time).wave();
         (self.scale*(x*x_factor + y*y_factor) + self.wave_speed*time).wave()*self.amplitude
     }
 }
 
-impl CircularWaveFormula {
+impl Formula for CircularWaveFormula {
     fn from_gene(gene: &Gene) -> CircularWaveFormula {
         assert!(gene.data.len() == FORMULA_GENE_SIZE);
         CircularWaveFormula {
@@ -96,7 +101,7 @@ impl CircularWaveFormula {
     }
 
     #[inline]
-    pub fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
+    fn get_value(&self, x: f32, y: f32, time: f32) -> f32 {
         let dx = x - (self.x_time*time).cowave();
         let dy = y - (self.y_time*time).wave();
         (self.scale*(dx*dx + dy*dy + 0.1).sqrt() + self.wave_speed*time).wave()*self.amplitude
@@ -122,32 +127,89 @@ impl PlasmaFormulas {
 
 #[cfg(test)]
 mod tests {
+    use fastmath::FastMath;
     use genetics::Gene;
     use super::FORMULA_GENE_SIZE;
-    use super::{WaveFormula,RotatingWaveFormula,CircularWaveFormula};
+    use super::{Formula,WaveFormula,RotatingWaveFormula,CircularWaveFormula};
 
-    #[test]
-    fn test_wave_formula_from_gene() {
-        let g = Gene::rand(FORMULA_GENE_SIZE);
-        let wf = WaveFormula::from_gene(&g);
-        assert!(wf.wave_speed.fract() == 0.0);
+    // Compares a Formula with a reference implementation at various coordinates and times.
+    // - optimized is the Formula to test.
+    // - reference is the reference implementation that maps (x, y, time) to a f32 value.
+    fn test_formula<F: Formula, C>(formula: &mut F, reference: C)
+        where C : Fn(f32, f32, f32) -> f32 {
+        // Helper for loops below
+        fn range(low: f32, high: f32, step: f32) -> Vec<f32> {
+            assert!(low < high && step > 0.0);
+            let mut result = vec![];
+            let mut x = low;
+            while x < high {
+                result.push(x);
+                x += step;
+            }
+            result
+        }
+        for x in range(-2.0, 2.0, 0.1) {
+            for y in range(-2.0, 2.0, 0.1) {
+                for time in range(0.0, 2.0, 0.1) {
+                    // Verify that formula matches its reference implementation
+                    let reference_value = reference(x, y, time);
+                    let formula_value = formula.get_value(x, y, time);
+                    assert!((reference_value - formula_value).abs() < 0.001);
+
+                    // Verify that formula(time) equals formula(time + 1.0)
+                    let next_formula_value = formula.get_value(x, y, time + 1.0);
+                    assert!((formula_value - next_formula_value).abs() < 0.001);
+                }
+            }
+        }
     }
 
     #[test]
-    fn test_rotating_wave_formula_from_gene() {
+    fn test_wave_get_value() {
         let g = Gene::rand(FORMULA_GENE_SIZE);
-        let wf = RotatingWaveFormula::from_gene(&g);
-        assert!(wf.x_time.fract() == 0.0);
-        assert!(wf.y_time.fract() == 0.0);
-        assert!(wf.wave_speed.fract() == 0.0);
+        let mut f = WaveFormula::from_gene(&g);
+
+        let x_factor = f.x_scale.cowave();
+        let y_factor = f.y_scale.wave();
+        let scale = f.scale;
+        let wave_speed = f.wave_speed;
+        let amplitude = f.amplitude;
+        test_formula(&mut f, |x, y, time| {
+            (scale*(x*x_factor + y*y_factor) + wave_speed*time).wave()*amplitude
+        });
     }
 
     #[test]
-    fn test_circular_wave_formula_from_gene() {
+    fn test_rotating_wave_get_value() {
         let g = Gene::rand(FORMULA_GENE_SIZE);
-        let cf = CircularWaveFormula::from_gene(&g);
-        assert!(cf.x_time.fract() == 0.0);
-        assert!(cf.y_time.fract() == 0.0);
-        assert!(cf.wave_speed.fract() == 0.0);
+        let mut f = RotatingWaveFormula::from_gene(&g);
+
+        let x_time = f.x_time;
+        let y_time = f.y_time;
+        let scale = f.scale;
+        let wave_speed = f.wave_speed;
+        let amplitude = f.amplitude;
+        test_formula(&mut f, |x, y, time| {
+            let x_factor = (x_time*time).cowave();
+            let y_factor = (y_time*time).wave();
+            (scale*(x*x_factor + y*y_factor) + wave_speed*time).wave()*amplitude
+        });
+    }
+
+    #[test]
+    fn test_circular_wave_get_value() {
+        let g = Gene::rand(FORMULA_GENE_SIZE);
+        let mut f = CircularWaveFormula::from_gene(&g);
+
+        let x_time = f.x_time;
+        let y_time = f.y_time;
+        let scale = f.scale;
+        let wave_speed = f.wave_speed;
+        let amplitude = f.amplitude;
+        test_formula(&mut f, |x, y, time| {
+            let dx = x - (x_time*time).cowave();
+            let dy = y - (y_time*time).wave();
+            (scale*(dx*dx + dy*dy + 0.1).sqrt() + wave_speed*time).wave()*amplitude
+        });
     }
 }
