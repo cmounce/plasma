@@ -117,26 +117,26 @@ impl PlasmaRenderer {
         }
     }
 
-    fn render(&self, image: &mut Image, time: f32) {
+    fn render(&mut self, image: &mut Image, time: f32) {
         // Scale screen coordinates so the smaller dimension ranges from -1.0 to 1.0
         let scale_mul = 2.0/((image.width as f32).min(image.height as f32));
         let scale_x_offset = -(image.width as f32)/2.0*scale_mul;
         let scale_y_offset = -(image.height as f32)/2.0*scale_mul;
         let adj_time = time.wrap();
+        self.formulas.set_time(adj_time);
         for y in 0..image.height {
             for x in 0..image.width {
                 let color = self.calculate_color(
                     (x as f32).mul_add(scale_mul, scale_x_offset),
-                    (y as f32).mul_add(scale_mul, scale_y_offset),
-                    adj_time
+                    (y as f32).mul_add(scale_mul, scale_y_offset)
                 );
                 image.plot(x, y, color);
             }
         }
     }
 
-    fn calculate_color(&self, x: f32, y: f32, time: f32) -> Color {
-        let value = self.formulas.get_value(x, y, time);
+    fn calculate_color(&self, x: f32, y: f32) -> Color {
+        let value = self.formulas.get_value(x, y);
         self.color_mapper.convert(value)
     }
 }
