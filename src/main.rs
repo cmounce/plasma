@@ -75,6 +75,13 @@ fn main() {
             std::thread::sleep(std::time::Duration::from_millis(target_ms - actual_ms));
         }
         plasma.add_time((cmp::max(target_ms, actual_ms) as f32)/1000.0);
+        if avg_render_time_count >= 50 {
+            println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
+            avg_render_time = 0.0;
+            avg_render_time_count = 0;
+        }
     }
-    println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
+    if avg_render_time_count > 0 {
+        println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
+    }
 }
