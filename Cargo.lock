@@ -3,7 +3,7 @@ name = "plasma"
 version = "0.1.0"
 dependencies = [
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "sdl2 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sdl2 0.23.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -102,7 +102,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "sdl2"
-version = "0.19.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -110,12 +110,12 @@ dependencies = [
  "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "sdl2-sys 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sdl2-sys 0.23.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "sdl2-sys"
-version = "0.19.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -134,5 +134,5 @@ dependencies = [
 "checksum num-traits 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)" = "a16a42856a256b39c6d3484f097f6713e14feacd9bfb02290917904fae46c81c"
 "checksum rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)" = "2791d88c6defac799c3f20d74f094ca33b9332612d9aef9078519c82e4fe04a5"
 "checksum rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)" = "6159e4e6e559c81bd706afe9c8fd68f547d3e851ce12e76b1de7914bab61691b"
-"checksum sdl2 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)" = "76ec9974f9c46477eaf6df9ca7fce9005848a3b345166b20c946e45015bb082c"
-"checksum sdl2-sys 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de2b434665e5a478b029ec5bbdb038d9d110d46b0a94e6688b39d52027fb1f12"
+"checksum sdl2 0.23.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a6f657685c104b3bc962115a469d9f9f4599133ef0e27c1cd7d5b0acd8e53860"
+"checksum sdl2-sys 0.23.0 (registry+https://github.com/rust-lang/crates.io-index)" = "dac03a13e21d0e36d8cb965807424c8098e16319166e74a584e520f8e23f909f"
