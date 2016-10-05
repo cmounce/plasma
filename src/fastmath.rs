@@ -28,7 +28,7 @@ impl FastMath<f32> for f32 {
          * The interval (0.0, 0.5) is covered by the parabola f(x) = 16x^2 - 8x.
          * Having one x and one x.abs() flips the parabola upside-down when x is negative.
          */
-        x * x.abs().mul_add(16.0, -8.0)
+        x*(x.abs()*16.0 - 8.0)
     }
 
     // Like cos(), except with a period of 1

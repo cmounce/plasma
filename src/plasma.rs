@@ -127,8 +127,8 @@ impl PlasmaRenderer {
         for y in 0..image.height {
             for x in 0..image.width {
                 let color = self.calculate_color(
-                    (x as f32).mul_add(scale_mul, scale_x_offset),
-                    (y as f32).mul_add(scale_mul, scale_y_offset)
+                    scale_mul*(x as f32) + scale_x_offset,
+                    scale_mul*(y as f32) + scale_y_offset
                 );
                 image.plot(x, y, color);
             }
