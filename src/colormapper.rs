@@ -2,7 +2,7 @@ use fastmath::FastMath;
 use genetics::{Chromosome, Gene};
 use gradient::{Color, ControlPoint, Gradient};
 
-const LOOKUP_TABLE_SIZE: usize = 256;
+const LOOKUP_TABLE_SIZE: usize = 512;
 pub const CONTROL_POINT_GENE_SIZE: usize = 5;
 
 impl Color {
