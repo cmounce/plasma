@@ -1,8 +1,10 @@
 extern crate rand;
+extern crate rustc_serialize;
 
 use std::collections::VecDeque;
 use self::rand::Rng;
 use self::rand::distributions::{Exp, IndependentSample, Normal};
+use self::rustc_serialize::base64::{ToBase64, URL_SAFE};
 
 /*
  * Definitions for genes, chromosomes, and genomes.
@@ -78,6 +80,10 @@ impl Gene {
         Gene { data: data }
     }
 
+    fn to_bytes(&self) -> Vec<u8> {
+        self.data.clone()
+    }
+
     fn mutating_clone(&self) -> Gene {
         let mut rng = rand::thread_rng();
         let exp = Exp::new(MUTATION_RATE);
@@ -107,6 +113,22 @@ impl Chromosome {
         c
     }
 
+    fn to_bytes(&self) -> Vec<u8> {
+        if self.genes.len() == 0 {
+            return vec![0];
+        }
+        let gene_size = self.genes[0].data.len();
+        let num_genes = self.genes.len();
+        let chromosome_header = ((gene_size & 0xF) << 4 | num_genes & 0xF) as u8;
+        let mut result = vec![chromosome_header];
+        for gene in &self.genes {
+            assert_eq!(gene_size, gene.data.len());
+            let mut bytes = gene.to_bytes();
+            result.append(&mut bytes);
+        }
+        result
+    }
+
     fn breed(&self, other: &Chromosome) -> Chromosome {
         assert!(self.genes.len() == other.genes.len());
         let mut rng = rand::thread_rng();
@@ -129,6 +151,17 @@ impl Genome {
             pattern: self.pattern.breed(&other.pattern),
             color: self.color.breed(&other.color)
         }
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut result = self.pattern.to_bytes();
+        result.append(&mut self.color.to_bytes());
+        result
+    }
+
+    fn to_base64(&self) -> String {
+        let bytes = self.to_bytes();
+        bytes.to_base64(URL_SAFE)
     }
 }
 
@@ -171,6 +204,7 @@ mod tests {
     use super::Population;
     use super::MUTATION_RATE;
     use super::MUTATION_STD_DEV;
+    use genetics::rustc_serialize::base64::{ToBase64, URL_SAFE};
 
     impl Gene {
         // Test helper -- used for detecting mutation
@@ -297,6 +331,26 @@ mod tests {
         let c = a.breed(&b);
         assert!(c.color.genes.len() == 1);
         assert!(c.pattern.genes.len() == 3);
+    }
+
+    #[test]
+    fn test_genome_to_base64() {
+        let g = Genome {
+            pattern: Chromosome { genes: vec![] },
+            color: Chromosome {
+                genes: vec![
+                    Gene { data: vec![2, 3, 5, 7] },
+                    Gene { data: vec![11, 13, 17, 19] }
+                ]
+            }
+        };
+        let bytes = vec![
+            0, // Pattern header: empty Chromosome
+            (4 << 4) | 2, // Color header: 2 genes, 4-byte each
+            2, 3, 5, 7, // Gene 1
+            11, 13, 17, 19 // Gene 2
+        ];
+        assert_eq!(g.to_base64(), bytes.to_base64(URL_SAFE));
     }
 
     #[test]
