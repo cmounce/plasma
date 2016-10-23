@@ -4,7 +4,7 @@ extern crate rustc_serialize;
 use std::collections::VecDeque;
 use self::rand::Rng;
 use self::rand::distributions::{Exp, IndependentSample, Normal};
-use self::rustc_serialize::base64::{ToBase64, URL_SAFE};
+use self::rustc_serialize::base64::{ToBase64, FromBase64, URL_SAFE};
 
 /*
  * Definitions for genes, chromosomes, and genomes.
@@ -84,6 +84,10 @@ impl Gene {
         self.data.clone()
     }
 
+    fn from_bytes(bytes: &[u8]) -> Gene {
+        Gene { data: bytes.to_vec() }
+    }
+
     fn mutating_clone(&self) -> Gene {
         let mut rng = rand::thread_rng();
         let exp = Exp::new(MUTATION_RATE);
@@ -119,14 +123,36 @@ impl Chromosome {
         }
         let gene_size = self.genes[0].data.len();
         let num_genes = self.genes.len();
-        let chromosome_header = ((gene_size & 0xF) << 4 | num_genes & 0xF) as u8;
-        let mut result = vec![chromosome_header];
+        assert!(gene_size < 16);
+        assert!(num_genes < 16);
+        let header = ((gene_size & 0xF) << 4 | num_genes & 0xF) as u8;
+        let mut result = vec![header];
         for gene in &self.genes {
             assert_eq!(gene_size, gene.data.len());
             let mut bytes = gene.to_bytes();
             result.append(&mut bytes);
         }
         result
+    }
+
+    fn from_mut_slice(slice: &mut &[u8]) -> Result<Chromosome, &'static str> {
+        if slice.len() < 1 {
+            return Err("Chromosome header is missing");
+        }
+        let header = slice[0];
+        let gene_size = ((header >> 4) & 0xF) as usize;
+        let num_genes = (header & 0xF) as usize;
+        let expected_len = 1 + gene_size*num_genes;
+        if slice.len() < expected_len {
+            return Err("Unexpected end of chromosome");
+        }
+        let genes = if expected_len <= 1 {
+            (0..num_genes).map(|_| Gene::from_bytes(&slice[1..1])).collect()
+        } else {
+            slice[1..expected_len].chunks(gene_size).map(|c| Gene::from_bytes(c)).collect()
+        };
+        *slice = &slice[expected_len..];
+        Ok(Chromosome { genes: genes })
     }
 
     fn breed(&self, other: &Chromosome) -> Chromosome {
@@ -159,9 +185,27 @@ impl Genome {
         result
     }
 
+    fn from_bytes(bytes: &[u8]) -> Result<Genome, &'static str> {
+        let mut slice = &bytes[..];
+        let pattern = try!(Chromosome::from_mut_slice(&mut slice));
+        let color = try!(Chromosome::from_mut_slice(&mut slice));
+        if !slice.is_empty() {
+            return Err("Unexpected bytes at end of genome");
+        }
+        Ok(Genome { pattern: pattern, color: color })
+    }
+
     fn to_base64(&self) -> String {
         let bytes = self.to_bytes();
         bytes.to_base64(URL_SAFE)
+    }
+
+    fn from_base64(data: &str) -> Result<Genome, &'static str> {
+        if let Ok(bytes) = data.from_base64() {
+            Genome::from_bytes(&bytes)
+        } else {
+            Err("Couldn't decode genome string")
+        }
     }
 }
 
@@ -351,6 +395,33 @@ mod tests {
             11, 13, 17, 19 // Gene 2
         ];
         assert_eq!(g.to_base64(), bytes.to_base64(URL_SAFE));
+    }
+
+    #[test]
+    fn test_genome_from_base64() {
+        for gene_size in 0..15 {
+            for num_genes in 0..15 {
+                let g1 = Genome {
+                    pattern: Chromosome::rand(num_genes, gene_size),
+                    color: Chromosome::rand(num_genes, gene_size)
+                };
+                let s = g1.to_base64();
+                if let Ok(g2) = Genome::from_base64(&s) {
+                    assert_eq!(g1, g2,
+                        "Bad deserialization with size = {}, number = {}", gene_size, num_genes
+                    );
+                } else {
+                    panic!("Couldn't deserialize size = {}, number = {}", gene_size, num_genes);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_genome_from_base64_bad_data() {
+        assert!(Genome::from_base64("").is_err());
+        assert!(Genome::from_base64("!@#$%^&*()").is_err());
+        assert!(Genome::from_base64(&vec![0].to_base64(URL_SAFE)).is_err());
     }
 
     #[test]
