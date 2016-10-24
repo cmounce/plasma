@@ -140,18 +140,18 @@ impl Chromosome {
             return Err("Chromosome header is missing");
         }
         let header = slice[0];
+        *slice = &slice[1..];
         let gene_size = ((header >> 4) & 0xF) as usize;
         let num_genes = (header & 0xF) as usize;
-        let expected_len = 1 + gene_size*num_genes;
+        let expected_len = gene_size*num_genes;
         if slice.len() < expected_len {
             return Err("Unexpected end of chromosome");
         }
-        let genes = if expected_len <= 1 {
-            (0..num_genes).map(|_| Gene::from_bytes(&slice[1..1])).collect()
-        } else {
-            slice[1..expected_len].chunks(gene_size).map(|c| Gene::from_bytes(c)).collect()
-        };
-        *slice = &slice[expected_len..];
+        let mut genes = vec![];
+        for _ in 0..num_genes {
+            genes.push(Gene::from_bytes(&slice[0..gene_size]));
+            *slice = &slice[gene_size..];
+        }
         Ok(Chromosome { genes: genes })
     }
 
