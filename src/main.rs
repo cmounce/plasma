@@ -46,6 +46,9 @@ fn main() {
                         Keycode::Minus | Keycode::Underscore | Keycode::KpMinus => {
                             plasma.reject();
                         },
+                        Keycode::E => {
+                            plasma.export_current_genome();
+                        },
                         _ => ()
                     }
                 },

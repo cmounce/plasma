@@ -1,4 +1,4 @@
-use colormapper::{ColorMapper,CONTROL_POINT_GENE_SIZE};
+use colormapper::{ColorMapper,NUM_COLOR_GENES,CONTROL_POINT_GENE_SIZE};
 use fastmath::FastMath;
 use formulas::{NUM_FORMULA_GENES,FORMULA_GENE_SIZE,PlasmaFormulas};
 use genetics::{Chromosome,Genome,Population};
@@ -53,7 +53,7 @@ impl Plasma {
         fn rand_genome() -> Genome {
             Genome {
                 pattern: Chromosome::rand(NUM_FORMULA_GENES, FORMULA_GENE_SIZE),
-                color: Chromosome::rand(10, CONTROL_POINT_GENE_SIZE)
+                color: Chromosome::rand(NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE)
             }
         }
         let mut population = Population::new(MAX_POPULATION_SIZE);
@@ -92,6 +92,10 @@ impl Plasma {
 
     pub fn reject(&mut self) {
         self.replace_renderer();
+    }
+
+    pub fn export_current_genome(&self) {
+        println!("{}", self.renderer.genome.to_base64());
     }
 
     fn replace_renderer(&mut self) -> Genome {

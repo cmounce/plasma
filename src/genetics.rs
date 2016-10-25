@@ -195,7 +195,7 @@ impl Genome {
         Ok(Genome { pattern: pattern, color: color })
     }
 
-    fn to_base64(&self) -> String {
+    pub fn to_base64(&self) -> String {
         let bytes = self.to_bytes();
         bytes.to_base64(URL_SAFE)
     }
