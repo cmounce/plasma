@@ -1,6 +1,7 @@
 use fastmath::FastMath;
 use genetics::{Chromosome, Gene};
 use gradient::{Color, ControlPoint, Gradient};
+use std::f32;
 
 const LOOKUP_TABLE_SIZE: usize = 512;
 pub const NUM_COLOR_GENES: usize = 8;
@@ -48,6 +49,36 @@ impl Color {
             to_component(b)
         )
     }
+
+    /*
+     * A transformed version of HSL whose coordinates are Cartesian rather than cylindrical.
+     *
+     * - color_x and color_y are Cartesian coordinates on a square color wheel:
+     *      - (0.0, 1.0) is the upper-left corner of the square (H = 0.0, S = 1.0)
+     *      - (1.0, 0.7) is 1/4 + 3/40 clockwise around the perimeter (H = 0.325, S = 1.0)
+     *      - (0.5, 0.5) is the center of the square (S = 0.0)
+     * - lightness goes from 0.0 to 1.0, and works the same as in regular HSL
+     */
+    fn from_square_hsl(color_x: f32, color_y: f32, lightness: f32) -> Color {
+        let x = (-1.0).lerp(1.0, color_x.clamp(0.0, 1.0));
+        let y = (-1.0).lerp(1.0, color_y.clamp(0.0, 1.0));
+        let saturation = x.abs().max(y.abs());
+        if saturation == 0.0 {
+            return Color::from_hsl(0.0, saturation, lightness);
+        }
+
+        let side_length = saturation*2.0;
+        let perimeter = side_length*4.0;
+        let adj_x = (x + saturation)/perimeter;
+        let adj_y = (y + saturation)/perimeter;
+        let hue = match (y > x, y > -x) {
+            (true,  true)  => adj_x,
+            (false, true)  => 0.25 + (0.25 - adj_y),
+            (false, false) => 0.5 + (0.25 - adj_x),
+            (true,  false) => 0.75 + adj_y
+        };
+        Color::from_hsl(hue, saturation, lightness)
+    }
 }
 
 impl ControlPoint {
@@ -55,12 +86,12 @@ impl ControlPoint {
         assert!(gene.data.len() == CONTROL_POINT_GENE_SIZE);
         let activation_threshold = 140;
         if gene.data[0] > activation_threshold {
-            let h = (gene.data[1] as f32)/256.0; // disallow h = 1.0 (wraps to 0.0)
-            let s = (gene.data[2] as f32)/255.0; // allow s = 1.0
-            let l = (gene.data[3] as f32)/255.0; // allow l = 1.0
+            let color_x = (gene.data[1] as f32)/255.0; // allow color_x = 1.0
+            let color_y = (gene.data[2] as f32)/255.0; // allow color_y = 1.0
+            let lightness = (gene.data[3] as f32)/255.0; // allow lightness = 1.0
             let position = (gene.data[4] as f32)/256.0; // disallow position = 1.0 (wraps to 0.0)
             Some(ControlPoint {
-                color: Color::from_hsl(h, s, l),
+                color: Color::from_square_hsl(color_x, color_y, lightness),
                 position: position
             })
         } else {
@@ -155,36 +186,46 @@ mod tests {
         assert_eq!(Color::from_hsl(0.0, 0.75, 0.5), gray.lerp(red, 0.75));
     }
 
-    // Make sure max/min byte values map to different hues
     #[test]
-    fn test_from_gene_hue() {
-        let g1 = Gene { data: vec![255, 255, 255, 127, 255] };
-        let g2 = Gene { data: vec![255,   0, 255, 127, 255] };
-        let cp1 = ControlPoint::from_gene(&g1).unwrap();
-        let cp2 = ControlPoint::from_gene(&g2).unwrap();
-        assert!(cp1.color != cp2.color); // Make sure we have different hues
+    fn test_from_square_hsl() {
+        // Test that going around the edge of the color square cycles through the hues
+        assert_eq!(Color::from_square_hsl(0.0, 1.0, 0.5), Color::from_hsl(0.0/8.0, 1.0, 0.5));
+        assert_eq!(Color::from_square_hsl(0.5, 1.0, 0.5), Color::from_hsl(1.0/8.0, 1.0, 0.5));
+        assert_eq!(Color::from_square_hsl(1.0, 1.0, 0.5), Color::from_hsl(2.0/8.0, 1.0, 0.5));
+        assert_eq!(Color::from_square_hsl(1.0, 0.5, 0.5), Color::from_hsl(3.0/8.0, 1.0, 0.5));
+        assert_eq!(Color::from_square_hsl(1.0, 0.0, 0.5), Color::from_hsl(4.0/8.0, 1.0, 0.5));
+        assert_eq!(Color::from_square_hsl(0.5, 0.0, 0.5), Color::from_hsl(5.0/8.0, 1.0, 0.5));
+        assert_eq!(Color::from_square_hsl(0.0, 0.0, 0.5), Color::from_hsl(6.0/8.0, 1.0, 0.5));
+        assert_eq!(Color::from_square_hsl(0.0, 0.5, 0.5), Color::from_hsl(7.0/8.0, 1.0, 0.5));
+
+        // Test saturation
+        assert_eq!(Color::from_square_hsl(0.5, 6.0/8.0, 0.5), Color::from_hsl(1.0/8.0, 0.5,  0.5));
+        assert_eq!(Color::from_square_hsl(0.5, 5.0/8.0, 0.5), Color::from_hsl(1.0/8.0, 0.25, 0.5));
+        assert_eq!(Color::from_square_hsl(0.5, 4.0/8.0, 0.5), Color::from_hsl(1.0/8.0, 0.0,  0.5));
+        assert_eq!(Color::from_square_hsl(0.5, 3.0/8.0, 0.5), Color::from_hsl(5.0/8.0, 0.25, 0.5));
+        assert_eq!(Color::from_square_hsl(0.5, 2.0/8.0, 0.5), Color::from_hsl(5.0/8.0, 0.5,  0.5));
+
+        // Test lightness
+        assert_eq!(Color::from_square_hsl(0.0, 1.0, 0.0),  Color::from_hsl(0.0, 1.0, 0.0));
+        assert_eq!(Color::from_square_hsl(0.0, 1.0, 0.25), Color::from_hsl(0.0, 1.0, 0.25));
+        assert_eq!(Color::from_square_hsl(0.0, 1.0, 0.75), Color::from_hsl(0.0, 1.0, 0.75));
+        assert_eq!(Color::from_square_hsl(0.0, 1.0, 1.0),  Color::from_hsl(0.0, 1.0, 1.0));
     }
 
-    // Make sure full range of saturation is possible
+    // Make sure full ranges of chroma/lightness are possible
     #[test]
-    fn test_from_gene_saturation() {
-        let g1 = Gene { data: vec![255, 0, 255, 127, 255] };
-        let g2 = Gene { data: vec![255, 0,   0, 127, 255] };
-        let cp1 = ControlPoint::from_gene(&g1).unwrap();
-        let cp2 = ControlPoint::from_gene(&g2).unwrap();
-        assert_eq!(cp1.color, Color::from_hsl(0.0, 1.0, 0.5));
-        assert_eq!(cp2.color, Color::from_hsl(0.0, 0.0, 0.5));
-    }
-
-    // Make sure full range of value is possible
-    #[test]
-    fn test_from_gene_value() {
-        let g1 = Gene { data: vec![255, 0, 255, 255, 255] };
-        let g2 = Gene { data: vec![255, 0, 255,   0, 255] };
-        let cp1 = ControlPoint::from_gene(&g1).unwrap();
-        let cp2 = ControlPoint::from_gene(&g2).unwrap();
-        assert_eq!(cp1.color, Color::from_hsl(0.0, 0.0, 1.0));
-        assert_eq!(cp2.color, Color::from_hsl(0.0, 0.0, 0.0));
+    fn test_from_gene_color() {
+        fn to_color(data: [u8; 5]) -> Color {
+            let g = Gene { data: data.to_vec() };
+            let cp = ControlPoint::from_gene(&g).unwrap();
+            return cp.color;
+        }
+        assert_eq!(to_color([255,   0,   0, 127, 255]), Color::from_square_hsl(-1.0, -1.0, 0.5));
+        assert_eq!(to_color([255,   0, 255, 127, 255]), Color::from_square_hsl(-1.0,  1.0, 0.5));
+        assert_eq!(to_color([255, 255,   0, 127, 255]), Color::from_square_hsl( 1.0, -1.0, 0.5));
+        assert_eq!(to_color([255, 255, 255, 127, 255]), Color::from_square_hsl( 1.0,  1.0, 0.5));
+        assert_eq!(to_color([255,   0,   0, 255, 255]), Color::from_square_hsl(-1.0, -1.0, 1.0));
+        assert_eq!(to_color([255,   0,   0,   0, 255]), Color::from_square_hsl(-1.0, -1.0, 0.0));
     }
 
     // Make sure max/min byte values map to different positions
