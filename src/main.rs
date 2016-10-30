@@ -6,6 +6,7 @@ mod formulas;
 mod genetics;
 mod gradient;
 mod plasma;
+mod renderer;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;

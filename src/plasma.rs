@@ -1,8 +1,7 @@
-use colormapper::{ColorMapper,NUM_COLOR_GENES,CONTROL_POINT_GENE_SIZE};
-use fastmath::FastMath;
-use formulas::{NUM_FORMULA_GENES,FORMULA_GENE_SIZE,PlasmaFormulas};
+use colormapper::{NUM_COLOR_GENES,CONTROL_POINT_GENE_SIZE};
+use formulas::{NUM_FORMULA_GENES,FORMULA_GENE_SIZE};
 use genetics::{Chromosome,Genome,Population};
-use gradient::Color;
+use renderer::{PlasmaRenderer, Image};
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::Renderer;
 use sdl2::render::Texture;
@@ -11,41 +10,12 @@ use std::{f32,mem};
 const STARTING_POPULATION_SIZE: usize = 8;
 const MAX_POPULATION_SIZE: usize = 32;
 
-struct Image {
-    width: usize,
-    height: usize,
-    pixel_data: Vec<u8>
-}
-
 pub struct Plasma {
     image: Image,
     renderer: PlasmaRenderer,
     population: Population,
     texture: Texture,
     time: f32
-}
-
-struct PlasmaRenderer {
-    genome: Genome,
-    formulas: PlasmaFormulas,
-    color_mapper: ColorMapper
-}
-
-impl Image{
-    fn new(width: usize, height: usize) -> Image {
-        Image {
-            width: width,
-            height: height,
-            pixel_data: vec![0; width*height*3]
-        }
-    }
-
-    fn plot(&mut self, x: usize, y: usize, color: Color) {
-        let offset = (x + y*self.width)*3;
-        self.pixel_data[offset] = color.r;
-        self.pixel_data[offset + 1] = color.g;
-        self.pixel_data[offset + 2] = color.b;
-    }
 }
 
 impl Plasma {
@@ -107,40 +77,5 @@ impl Plasma {
         } else {
             panic!("Could not get a breeding pair from population struct");
         }
-    }
-}
-
-impl PlasmaRenderer {
-    fn new(genome: Genome) -> PlasmaRenderer {
-        let color_mapper = ColorMapper::new(&genome.color);
-        let formulas = PlasmaFormulas::from_chromosome(&genome.pattern);
-        PlasmaRenderer {
-            genome: genome,
-            formulas: formulas,
-            color_mapper: color_mapper
-        }
-    }
-
-    fn render(&mut self, image: &mut Image, time: f32) {
-        // Scale screen coordinates so the smaller dimension ranges from -1.0 to 1.0
-        let scale_mul = 2.0/((image.width as f32).min(image.height as f32));
-        let scale_x_offset = -(image.width as f32)/2.0*scale_mul;
-        let scale_y_offset = -(image.height as f32)/2.0*scale_mul;
-        let adj_time = time.wrap();
-        self.formulas.set_time(adj_time);
-        for y in 0..image.height {
-            for x in 0..image.width {
-                let color = self.calculate_color(
-                    scale_mul*(x as f32) + scale_x_offset,
-                    scale_mul*(y as f32) + scale_y_offset
-                );
-                image.plot(x, y, color);
-            }
-        }
-    }
-
-    fn calculate_color(&self, x: f32, y: f32) -> Color {
-        let value = self.formulas.get_value(x, y);
-        self.color_mapper.convert(value)
     }
 }
