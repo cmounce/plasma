@@ -1,3 +1,4 @@
+extern crate getopts;
 extern crate sdl2;
 
 mod colormapper;
@@ -8,10 +9,13 @@ mod gradient;
 mod plasma;
 mod renderer;
 
+use getopts::Options;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::event::WindowEventId;
+use std::env;
 use std::f32;
+use std::io::Write;
 use std::time::SystemTime;
 use plasma::Plasma;
 
@@ -22,6 +26,17 @@ const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
 
 fn main() {
+    let mut opts = Options::new();
+    opts.optflag("v", "verbose", "Print stats while running");
+    let matches = match opts.parse(env::args()) {
+        Ok(m) => m,
+        Err(_) => {
+            writeln!(&mut std::io::stderr(), "Bad arguments").unwrap();
+            return;
+        }
+    };
+    let print_stats = matches.opt_present("v");
+
     let sdl = sdl2::init().unwrap();
     let video = sdl.video().unwrap();
     let window = video.window("plasma", WIDTH, HEIGHT).resizable().build().unwrap();
@@ -82,15 +97,17 @@ fn main() {
         plasma.add_time(target_ms.max(actual_ms)/1000.0);
 
         // Calculate time statistics
-        avg_render_time += actual_ms;
-        avg_render_time_count += 1;
-        if avg_render_time_count >= 50 {
-            println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
-            avg_render_time = 0.0;
-            avg_render_time_count = 0;
+        if print_stats {
+            avg_render_time += actual_ms;
+            avg_render_time_count += 1;
+            if avg_render_time_count >= 50 {
+                println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
+                avg_render_time = 0.0;
+                avg_render_time_count = 0;
+            }
         }
     }
-    if avg_render_time_count > 0 {
+    if avg_render_time_count > 0 && print_stats {
         println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
     }
 }

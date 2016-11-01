@@ -7,3 +7,4 @@ authors = ["Chris Mounce <christophermounce@gmail.com>"]
 rand = "0.3"
 sdl2 = "0.23"
 rustc-serialize = "0.3"
+getopts = "0.2"
