@@ -1,0 +1,166 @@
+use colormapper::{NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE};
+use formulas::{NUM_FORMULA_GENES, FORMULA_GENE_SIZE};
+use genetics::{Chromosome, Genome, Population};
+use renderer::{PlasmaRenderer, Image};
+use sdl2;
+use sdl2::event::{Event, WindowEventId};
+use sdl2::keyboard::Keycode;
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::render::{Renderer, Texture};
+use std::{f32, mem, thread};
+use std::time::{Duration, SystemTime};
+
+const FRAMES_PER_SECOND: f32 = 16.0;
+
+// Default window size
+const WIDTH: u32 = 640;
+const HEIGHT: u32 = 480;
+
+const STARTING_POPULATION_SIZE: usize = 8;
+const MAX_POPULATION_SIZE: usize = 32;
+
+pub fn run_interactive(print_stats: bool) {
+    let sdl = sdl2::init().unwrap();
+    let video = sdl.video().unwrap();
+    let window = video.window("plasma", WIDTH, HEIGHT).resizable().build().unwrap();
+
+    let mut renderer = window.renderer().build().unwrap();
+    let mut plasma = Plasma::new(&mut renderer, WIDTH, HEIGHT);
+
+    let mut running = true;
+    let mut event_pump = sdl.event_pump().unwrap();
+    let mut avg_render_time = 0.0;
+    let mut avg_render_time_count = 0;
+    while running {
+        let timestamp = SystemTime::now();
+
+        // Process events, draw plasma
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::KeyDown { keycode: Some(keycode), ..} => {
+                    match keycode {
+                        Keycode::Equals | Keycode::Plus | Keycode::KpPlus => {
+                            plasma.approve();
+                        },
+                        Keycode::Minus | Keycode::Underscore | Keycode::KpMinus => {
+                            plasma.reject();
+                        },
+                        Keycode::E => {
+                            plasma.export_current_genome();
+                        },
+                        _ => ()
+                    }
+                },
+
+                Event::Window {
+                    win_event_id: WindowEventId::Resized,
+                    data1: width,
+                    data2: height, ..
+                } => {
+                    plasma.resize(&mut renderer, width as u32, height as u32);
+                },
+
+                Event::Quit {..} => { running = false; break },
+                _ => ()
+            }
+        }
+        plasma.update(&mut renderer);
+
+        // Sleep to hit framerate
+        let duration = timestamp.elapsed().unwrap();
+        let target_ms = 1000.0/FRAMES_PER_SECOND;
+        let actual_ms = duration.subsec_nanos() as f32/1_000_000.0 +
+            duration.as_secs() as f32*1000.0;
+        if actual_ms > target_ms {
+            println!("Target frame delay is {} but actual time taken is {}", target_ms, actual_ms);
+        } else {
+            let sleep_ms = (target_ms - actual_ms).max(0.0) as u64;
+            thread::sleep(Duration::from_millis(sleep_ms));
+        }
+        plasma.add_time(target_ms.max(actual_ms)/1000.0);
+
+        // Calculate time statistics
+        if print_stats {
+            avg_render_time += actual_ms;
+            avg_render_time_count += 1;
+            if avg_render_time_count >= 50 {
+                println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
+                avg_render_time = 0.0;
+                avg_render_time_count = 0;
+            }
+        }
+    }
+    if avg_render_time_count > 0 && print_stats {
+        println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
+    }
+}
+
+pub struct Plasma {
+    image: Image,
+    renderer: PlasmaRenderer,
+    population: Population,
+    texture: Texture,
+    time: f32
+}
+
+impl Plasma {
+    pub fn new(renderer: &mut Renderer, width: u32, height: u32) -> Plasma {
+        fn rand_genome() -> Genome {
+            Genome {
+                pattern: Chromosome::rand(NUM_FORMULA_GENES, FORMULA_GENE_SIZE),
+                color: Chromosome::rand(NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE)
+            }
+        }
+        let mut population = Population::new(MAX_POPULATION_SIZE);
+        for _ in 0..STARTING_POPULATION_SIZE {
+            population.add(rand_genome());
+        }
+        Plasma {
+            image: Image::new(width as usize, height as usize),
+            population: population,
+            renderer: PlasmaRenderer::new(rand_genome()),
+            texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, width, height).unwrap(),
+            time: 0.0
+        }
+    }
+
+    pub fn resize(&mut self, renderer: &mut Renderer, width: u32, height: u32) {
+        self.image = Image::new(width as usize, height as usize);
+        self.texture = renderer.create_texture_streaming(PixelFormatEnum::RGB24, width, height).unwrap();
+    }
+
+    pub fn update(&mut self, sdl_renderer: &mut Renderer) {
+        self.renderer.render(&mut self.image, self.time/60.0);
+        self.texture.update(None, &self.image.pixel_data[..], (self.image.width*3) as usize).unwrap();
+        sdl_renderer.copy(&self.texture, None, None);
+        sdl_renderer.present();
+    }
+
+    pub fn add_time(&mut self, time: f32) {
+        self.time += time;
+    }
+
+    pub fn approve(&mut self) {
+        let old_genome = self.replace_renderer();
+        self.population.add(old_genome);
+    }
+
+    pub fn reject(&mut self) {
+        self.replace_renderer();
+    }
+
+    pub fn export_current_genome(&self) {
+        println!("{}", self.renderer.genome.to_base64());
+    }
+
+    fn replace_renderer(&mut self) -> Genome {
+        if let Some((g1, g2)) = self.population.get_pair() {
+            let child = g1.breed(g2);
+            let new_renderer = PlasmaRenderer::new(child);
+            let old_renderer = mem::replace(&mut self.renderer, new_renderer);
+            old_renderer.genome
+        } else {
+            panic!("Could not get a breeding pair from population struct");
+        }
+    }
+}
