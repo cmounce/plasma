@@ -19,7 +19,11 @@ const HEIGHT: u32 = 480;
 const STARTING_POPULATION_SIZE: usize = 8;
 const MAX_POPULATION_SIZE: usize = 32;
 
-pub fn run_interactive(print_stats: bool) {
+pub struct InteractiveParameters {
+    pub print_stats: bool
+}
+
+pub fn run_interactive(params: InteractiveParameters) {
     let sdl = sdl2::init().unwrap();
     let video = sdl.video().unwrap();
     let window = video.window("plasma", WIDTH, HEIGHT).resizable().build().unwrap();
@@ -80,7 +84,7 @@ pub fn run_interactive(print_stats: bool) {
         plasma.add_time(target_ms.max(actual_ms)/1000.0);
 
         // Calculate time statistics
-        if print_stats {
+        if params.print_stats {
             avg_render_time += actual_ms;
             avg_render_time_count += 1;
             if avg_render_time_count >= 50 {
@@ -90,7 +94,7 @@ pub fn run_interactive(print_stats: bool) {
             }
         }
     }
-    if avg_render_time_count > 0 && print_stats {
+    if avg_render_time_count > 0 && params.print_stats {
         println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
     }
 }

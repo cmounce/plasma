@@ -10,6 +10,7 @@ mod interactive;
 mod renderer;
 
 use getopts::Options;
+use interactive::InteractiveParameters;
 use std::env;
 use std::io::Write;
 
@@ -23,6 +24,7 @@ fn main() {
             return;
         }
     };
-    let print_stats = matches.opt_present("v");
-    interactive::run_interactive(print_stats);
+    interactive::run_interactive(InteractiveParameters {
+        print_stats: matches.opt_present("v")
+    });
 }
