@@ -1,6 +1,4 @@
-use colormapper::{NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE};
-use formulas::{NUM_FORMULA_GENES, FORMULA_GENE_SIZE};
-use genetics::{Chromosome, Genome, Population};
+use genetics::{Genome, Population};
 use renderer::{PlasmaRenderer, Image};
 use sdl2;
 use sdl2::event::{Event, WindowEventId};
@@ -16,11 +14,10 @@ const FRAMES_PER_SECOND: f32 = 16.0;
 const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
 
-const STARTING_POPULATION_SIZE: usize = 8;
-const MAX_POPULATION_SIZE: usize = 32;
-
 pub struct InteractiveParameters {
-    pub print_stats: bool
+    pub print_stats: bool,
+    pub starting_genome: Genome,
+    pub population: Population
 }
 
 pub fn run_interactive(params: InteractiveParameters) {
@@ -29,7 +26,7 @@ pub fn run_interactive(params: InteractiveParameters) {
     let window = video.window("plasma", WIDTH, HEIGHT).resizable().build().unwrap();
 
     let mut renderer = window.renderer().build().unwrap();
-    let mut plasma = Plasma::new(&mut renderer, WIDTH, HEIGHT);
+    let mut plasma = Plasma::new(&mut renderer, WIDTH, HEIGHT, params.starting_genome, params.population);
 
     let mut running = true;
     let mut event_pump = sdl.event_pump().unwrap();
@@ -108,21 +105,11 @@ pub struct Plasma {
 }
 
 impl Plasma {
-    pub fn new(renderer: &mut Renderer, width: u32, height: u32) -> Plasma {
-        fn rand_genome() -> Genome {
-            Genome {
-                pattern: Chromosome::rand(NUM_FORMULA_GENES, FORMULA_GENE_SIZE),
-                color: Chromosome::rand(NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE)
-            }
-        }
-        let mut population = Population::new(MAX_POPULATION_SIZE);
-        for _ in 0..STARTING_POPULATION_SIZE {
-            population.add(rand_genome());
-        }
+    pub fn new(renderer: &mut Renderer, width: u32, height: u32, starting_genome: Genome, population: Population) -> Plasma {
         Plasma {
             image: Image::new(width as usize, height as usize),
             population: population,
-            renderer: PlasmaRenderer::new(rand_genome()),
+            renderer: PlasmaRenderer::new(starting_genome),
             texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, width, height).unwrap(),
             time: 0.0
         }

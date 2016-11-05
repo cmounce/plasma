@@ -200,7 +200,7 @@ impl Genome {
         bytes.to_base64(URL_SAFE)
     }
 
-    fn from_base64(data: &str) -> Result<Genome, &'static str> {
+    pub fn from_base64(data: &str) -> Result<Genome, &'static str> {
         if let Ok(bytes) = data.from_base64() {
             Genome::from_bytes(&bytes)
         } else {
@@ -226,8 +226,11 @@ impl Population {
 
     pub fn get_pair(&self) -> Option<(&Genome, &Genome)> {
         let num_genomes = self.genomes.len();
-        if num_genomes < 2 {
+        if num_genomes == 0 {
             None
+        } else if num_genomes == 1 {
+            // Only one genome: return it twice
+            Some((self.genomes.get(0).unwrap(), self.genomes.get(0).unwrap()))
         } else {
             // Pick two different genomes
             let mut rng = rand::thread_rng();
@@ -426,18 +429,23 @@ mod tests {
 
     #[test]
     fn test_population() {
+        // Test get_pair() with 0 genomes
         let max_genomes = 5;
         let mut p = Population::new(max_genomes);
-        // Test get_pair() with <= 2 genomes
+        assert_eq!(p.get_pair().is_some(), false);
+
+        // Test with 1 genome
         let g = Genome {
             color: Chromosome::rand(4,4),
             pattern: Chromosome::rand(4,4)
         };
-        assert_eq!(p.get_pair().is_some(), false);
-        p.add(g.clone());
-        assert_eq!(p.get_pair().is_some(), false);
         p.add(g.clone());
         assert_eq!(p.get_pair().is_some(), true);
+
+        // Test with 2 genomes
+        p.add(g.clone());
+        assert_eq!(p.get_pair().is_some(), true);
+
         // Fill Population past its limit of max_genomes
         for _ in 0..max_genomes {
             let g = Genome {
