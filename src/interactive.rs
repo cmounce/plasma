@@ -1,4 +1,5 @@
 use genetics::{Genome, Population};
+use gif::{Encoder, Frame};
 use renderer::{PlasmaRenderer, Image};
 use sdl2;
 use sdl2::event::{Event, WindowEventId};
@@ -6,6 +7,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::{Renderer, Texture};
 use std::{f32, mem, thread};
+use std::fs::File;
 use std::time::{Duration, SystemTime};
 
 const FRAMES_PER_SECOND: f32 = 16.0;
@@ -48,6 +50,9 @@ pub fn run_interactive(params: InteractiveParameters) {
                         },
                         Keycode::E => {
                             plasma.export_current_genome();
+                        },
+                        Keycode::S => {
+                            plasma.screenshot();
                         },
                         _ => ()
                     }
@@ -142,6 +147,22 @@ impl Plasma {
 
     pub fn export_current_genome(&self) {
         println!("{}", self.renderer.genome.to_base64());
+    }
+
+    pub fn screenshot(&self) {
+        let frame = Frame::from_rgb(
+            self.image.width as u16,
+            self.image.height as u16,
+            &self.image.pixel_data[..]
+        );
+        let mut file = File::create("screenshot.gif").unwrap();
+        let mut encoder = Encoder::new(
+            &mut file,
+            self.image.width as u16,
+            self.image.height as u16,
+            &[]
+        ).unwrap();
+        encoder.write_frame(&frame).unwrap();
     }
 
     fn replace_renderer(&mut self) -> Genome {

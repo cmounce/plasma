@@ -1,5 +1,6 @@
-extern crate sdl2;
 extern crate getopts;
+extern crate gif;
+extern crate sdl2;
 
 mod colormapper;
 mod fastmath;
