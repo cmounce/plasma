@@ -4,6 +4,7 @@ extern crate sdl2;
 
 mod colormapper;
 mod fastmath;
+mod file;
 mod formulas;
 mod genetics;
 mod gradient;
@@ -11,6 +12,7 @@ mod interactive;
 mod renderer;
 
 use colormapper::{NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE};
+use file::NonInteractiveParams;
 use formulas::{NUM_FORMULA_GENES, FORMULA_GENE_SIZE};
 use getopts::Options;
 use genetics::{Chromosome, Genome, Population};
@@ -41,6 +43,7 @@ fn read_genome(data: &str) -> Genome {
 
 fn main() {
     let mut opts = Options::new();
+    opts.optopt("o", "output", "Output to a file (GIF) instead of to a window", "FILE");
     opts.optflag("v", "verbose", "Print stats while running");
     let matches = match opts.parse(env::args()) {
         Ok(m) => m,
@@ -67,9 +70,20 @@ fn main() {
             population.add(read_genome(genome_string));
         }
     }
-    interactive::run_interactive(InteractiveParameters {
-        print_stats: matches.opt_present("v"),
-        starting_genome: starting_genome,
-        population: population
-    });
+
+    if matches.opt_present("o") {
+        file::output_gif(NonInteractiveParams {
+            filepath: matches.opt_str("o").unwrap(),
+            genome: starting_genome,
+            width: 300,
+            height: 250,
+            fps: 10
+        });
+    } else {
+        interactive::run_interactive(InteractiveParameters {
+            print_stats: matches.opt_present("v"),
+            starting_genome: starting_genome,
+            population: population
+        });
+    }
 }
