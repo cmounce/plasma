@@ -1,5 +1,5 @@
 use genetics::Genome;
-use gif::{Encoder, Frame};
+use gif::{Encoder, Frame, SetParameter, Repeat};
 use renderer::{Image, PlasmaRenderer};
 use std::fs::File;
 
@@ -22,6 +22,7 @@ pub fn output_gif(params: NonInteractiveParams) {
         image.height as u16,
         &[]
     ).unwrap();
+    encoder.set(Repeat::Infinite).unwrap();
 
     for seconds in 0..60 {
         for frames in 0..params.fps {
