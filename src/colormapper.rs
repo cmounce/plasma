@@ -8,6 +8,33 @@ pub const NUM_COLOR_GENES: usize = 8;
 pub const CONTROL_POINT_GENE_SIZE: usize = 5;
 
 impl Color {
+    fn sq_dist(&self, other: Color) -> f32 {
+        fn partial(x: u8, y: u8) -> f32 {
+            let gamma = 2.2;
+            let difference = (x as f32).powf(gamma) - (y as f32).powf(gamma);
+            difference*difference
+        }
+        partial(self.r, other.r) + partial(self.g, other.g) + partial(self.b, other.b)
+    }
+
+    fn avg(colors: &[Color]) -> Color {
+        assert!(colors.len() > 0);
+        macro_rules! avg_component {
+            ($component:ident) => {{
+                let gamma = 2.2;
+                let linear_components = colors.iter().map(|c| (c.$component as f32).powf(gamma));
+                let linear_sum: f32 = linear_components.sum();
+                let linear_avg = linear_sum/colors.len() as f32;
+                linear_avg.powf(1.0/gamma).round() as u8
+            }};
+        }
+        Color {
+            r: avg_component!(r),
+            g: avg_component!(g),
+            b: avg_component!(b)
+        }
+    }
+
     fn from_hsl(hue: f32, saturation: f32, lightness: f32) -> Color {
         let h = hue.wrap();
         let s = saturation.clamp(0.0, 1.0);
@@ -114,19 +141,82 @@ impl ColorMapper {
             }
         }
         let gradient = Gradient::new(control_points);
-        let mut iter = gradient.iter();
-        let mut subgradient = iter.next().unwrap();
+        let palette = ColorMapper::calculate_palette(&gradient, 255);
         for i in 0..LOOKUP_TABLE_SIZE {
              let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
-             while !subgradient.contains(position) {
-                 subgradient = iter.next().unwrap();
-             }
-             lookup_table[i] = subgradient.color_at(position);
+             let color = gradient.get(position);
+             let index = ColorMapper::quantize(color, &palette[..]);
+             lookup_table[i] = palette[index as usize];
         }
 
         ColorMapper {
             lookup_table: lookup_table
         }
+    }
+
+    fn quantize(color: Color, palette: &[Color]) -> u8 {
+        let mut best_index = 0;
+        let mut best_distance = f32::INFINITY;
+        for i in 0..palette.len() {
+            let distance = palette[i].sq_dist(color);
+            if distance < best_distance {
+                best_index = i;
+                best_distance = distance;
+            }
+        }
+        best_index as u8
+    }
+
+    fn calculate_palette(gradient: &Gradient, palette_size: usize) -> Vec<Color> {
+        assert!(palette_size >= 1);
+        assert!(palette_size <= 256);
+
+        // Sample many points on the gradient, more points than there are palette colors
+        let num_samples = 512;
+        let sample_step = 1.0/num_samples as f32;
+        let mut samples = Vec::with_capacity(num_samples);
+        for i in 0..num_samples {
+            let position = sample_step*i as f32;
+            samples.push(gradient.get(position));
+        }
+
+        // Create an initial palette by subsampling the samples Vec
+        let mut palette = Vec::with_capacity(palette_size);
+        let palette_step = 1.0/palette_size as f32;
+        for i in 0..palette_size {
+            palette.push(gradient.get(palette_step*i as f32));
+        }
+
+        // Do k-means clustering
+        // The palette entries are the k means
+        // The data points are the many samples we've taken of the gradient
+        let mut quantized_samples = vec![0; num_samples];
+        let mut palette_updated = true;
+        while palette_updated {
+            // Re-quantize our samples using the latest palette
+            for i in 0..num_samples {
+                quantized_samples[i] = ColorMapper::quantize(samples[i], &palette[..]);
+            }
+
+            // Rebuild our palette
+            palette_updated = false;
+            let mut palette_representees = vec![vec![]; palette_size];
+            for i in 0..num_samples {
+                let palette_index = quantized_samples[i] as usize;
+                palette_representees[palette_index].push(samples[i]);
+            }
+            for i in 0..palette_size {
+                if palette_representees[i].len() > 0 {
+                    let average = Color::avg(&palette_representees[i][..]);
+                    if palette[i] != average {
+                        palette[i] = average;
+                        palette_updated = true;
+                    }
+                }
+            }
+        }
+
+        palette
     }
 
     pub fn convert(&self, value: f32) -> Color {
@@ -140,6 +230,23 @@ mod tests {
     use genetics::Gene;
     use gradient::Color;
     use gradient::ControlPoint;
+
+    #[test]
+    fn test_color_sq_dist() {
+        let black = Color::new(0, 0, 0);
+        let white = Color::new(255, 255, 255);
+        let gray = black.lerp(white, 0.5);
+        assert_eq!(black.sq_dist(black), 0.0);
+        assert!(black.sq_dist(gray) < black.sq_dist(white));
+    }
+
+    #[test]
+    fn test_color_avg() {
+        let black = Color::new(0, 0, 0);
+        let white = Color::new(255, 255, 255);
+        assert_eq!(Color::avg(&[black, white]), black.lerp(white, 0.5));
+        assert_eq!(Color::avg(&[black, black, white]), black.lerp(white, 1.0/3.0));
+    }
 
     #[test]
     fn test_color_from_hsl() {

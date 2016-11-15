@@ -111,6 +111,16 @@ impl Gradient {
         }
     }
 
+    pub fn get(&self, position: f32) -> Color {
+        let pos = position.wrap();
+        let mut iter = self.iter();
+        let mut subgradient = iter.next().unwrap();
+        while !subgradient.contains(pos) {
+            subgradient = iter.next().unwrap();
+        }
+        subgradient.color_at(pos)
+    }
+
     pub fn iter(&self) -> GradientIterator {
         GradientIterator {
             index1: self.points.len() - 1,
