@@ -8,11 +8,13 @@ pub const NUM_COLOR_GENES: usize = 8;
 pub const CONTROL_POINT_GENE_SIZE: usize = 5;
 
 impl Color {
-    fn sq_dist(&self, other: Color) -> f32 {
-        fn partial(x: u8, y: u8) -> f32 {
-            let gamma = 2.2;
-            let difference = (x as f32).powf(gamma) - (y as f32).powf(gamma);
-            difference*difference
+    fn sq_dist(&self, other: Color) -> u32 {
+        // We intentionally do the distance calculation on gamma-encoded RGB values,
+        // as opposed to doing it on linear values. Doing the calculation on gamma-encoded
+        // values better matches perceived color distance. As a bonus, it's also faster.
+        fn partial(x: u8, y: u8) -> u32 {
+            let delta = (x as i32) - (y as i32);
+            (delta*delta) as u32
         }
         partial(self.r, other.r) + partial(self.g, other.g) + partial(self.b, other.b)
     }
@@ -155,16 +157,9 @@ impl ColorMapper {
     }
 
     fn quantize(color: Color, palette: &[Color]) -> u8 {
-        let mut best_index = 0;
-        let mut best_distance = f32::INFINITY;
-        for i in 0..palette.len() {
-            let distance = palette[i].sq_dist(color);
-            if distance < best_distance {
-                best_index = i;
-                best_distance = distance;
-            }
-        }
-        best_index as u8
+        palette.iter().enumerate().min_by_key(|index_color|
+            color.sq_dist(*index_color.1)
+        ).unwrap().0 as u8
     }
 
     fn calculate_palette(gradient: &Gradient, palette_size: usize) -> Vec<Color> {
@@ -236,7 +231,7 @@ mod tests {
         let black = Color::new(0, 0, 0);
         let white = Color::new(255, 255, 255);
         let gray = black.lerp(white, 0.5);
-        assert_eq!(black.sq_dist(black), 0.0);
+        assert_eq!(black.sq_dist(black), 0);
         assert!(black.sq_dist(gray) < black.sq_dist(white));
     }
 
