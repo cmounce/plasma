@@ -6,6 +6,7 @@ use gradient::Color;
 use std::f32;
 
 pub struct Image {
+    // Should this have a flag: indexed vs. true color?
     pub width: usize,
     pub height: usize,
     pub pixel_data: Vec<u8>
