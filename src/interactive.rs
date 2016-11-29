@@ -6,6 +6,7 @@ use sdl2::event::{Event, WindowEventId};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::{Renderer, Texture};
+use settings::PlasmaSettings;
 use std::{f32, mem, thread};
 use std::fs::File;
 use std::time::{Duration, SystemTime};
@@ -16,19 +17,19 @@ const FRAMES_PER_SECOND: f32 = 16.0;
 const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
 
-pub struct InteractiveParameters {
-    pub print_stats: bool,
-    pub starting_genome: Genome,
-    pub population: Population
-}
-
-pub fn run_interactive(params: InteractiveParameters) {
+pub fn run_interactive(settings: PlasmaSettings) {
     let sdl = sdl2::init().unwrap();
     let video = sdl.video().unwrap();
     let window = video.window("plasma", WIDTH, HEIGHT).resizable().build().unwrap();
 
     let mut renderer = window.renderer().build().unwrap();
-    let mut plasma = Plasma::new(&mut renderer, WIDTH, HEIGHT, params.starting_genome, params.population);
+    let mut plasma = Plasma::new(
+        &mut renderer,
+        WIDTH,
+        HEIGHT,
+        settings.genetics.genome,
+        settings.genetics.population
+    );
 
     let mut running = true;
     let mut event_pump = sdl.event_pump().unwrap();
@@ -86,7 +87,7 @@ pub fn run_interactive(params: InteractiveParameters) {
         plasma.add_time(target_ms.max(actual_ms)/1000.0);
 
         // Calculate time statistics
-        if params.print_stats {
+        if settings.output.verbose {
             avg_render_time += actual_ms;
             avg_render_time_count += 1;
             if avg_render_time_count >= 50 {
@@ -96,7 +97,7 @@ pub fn run_interactive(params: InteractiveParameters) {
             }
         }
     }
-    if avg_render_time_count > 0 && params.print_stats {
+    if avg_render_time_count > 0 && settings.output.verbose {
         println!("Average render time: {} ms", avg_render_time/(avg_render_time_count as f32));
     }
 }

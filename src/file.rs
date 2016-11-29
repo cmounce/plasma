@@ -1,21 +1,17 @@
-use genetics::Genome;
 use gif::{Encoder, Frame, SetParameter, Repeat};
 use renderer::{Image, PlasmaRenderer};
+use settings::{OutputMode,PlasmaSettings};
 use std::fs::File;
 
-pub struct NonInteractiveParams {
-    pub filepath: String,
-    pub genome: Genome,
-    pub width: u32,
-    pub height: u32,
-    pub fps: u8
-}
+pub fn output_gif(settings: PlasmaSettings) {
+    let mut renderer = PlasmaRenderer::new(settings.genetics.genome);
+    let mut image = Image::new(settings.rendering.width, settings.rendering.height);
 
-pub fn output_gif(params: NonInteractiveParams) {
-    let mut renderer = PlasmaRenderer::new(params.genome);
-    let mut image = Image::new(params.width as usize, params.height as usize);
-
-    let mut file = File::create(params.filepath).unwrap();
+    let path = match settings.output.mode {
+        OutputMode::File{path} => path,
+        _ => panic!("OutputMode must be File")
+    };
+    let mut file = File::create(path).unwrap();
     let mut encoder = Encoder::new(
         &mut file,
         image.width as u16,
@@ -24,9 +20,10 @@ pub fn output_gif(params: NonInteractiveParams) {
     ).unwrap();
     encoder.set(Repeat::Infinite).unwrap();
 
+    let fps = settings.rendering.frames_per_second;
     for seconds in 0..60 {
-        for frames in 0..params.fps {
-            let time = seconds as f32 + frames as f32 / params.fps as f32;
+        for frames in 0..(fps as u8) {
+            let time = seconds as f32 + frames as f32 / fps;
             let adj_time = time/60.0;
             renderer.render(&mut image, adj_time);
             let frame = Frame::from_rgb(
