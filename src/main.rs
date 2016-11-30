@@ -144,8 +144,8 @@ fn build_plasma_settings(matches: Matches) -> Result<PlasmaSettings, String> {
     if matches.opt_present("p") {
         let palette_size_str = matches.opt_str("p").unwrap();
         rendering_settings.palette_size = match palette_size_str.parse() {
-            Ok(n) if 0 < n && n < 256 => Some(n),
-            _ => return Err(format!("Not an integer from 1 to 255: {}", palette_size_str))
+            Ok(n) if 2 <= n && n <= 255 => Some(n),
+            _ => return Err(format!("Not an integer from 2 to 255: {}", palette_size_str))
         };
     }
     if matches.opt_present("w") || matches.opt_present("h") {
