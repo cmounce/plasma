@@ -11,22 +11,18 @@ use std::{f32, mem, thread};
 use std::fs::File;
 use std::time::{Duration, SystemTime};
 
-const FRAMES_PER_SECOND: f32 = 16.0;
-
-// Default window size
-const WIDTH: u32 = 640;
-const HEIGHT: u32 = 480;
-
 pub fn run_interactive(settings: PlasmaSettings) {
     let sdl = sdl2::init().unwrap();
     let video = sdl.video().unwrap();
-    let window = video.window("plasma", WIDTH, HEIGHT).resizable().build().unwrap();
+    let width = settings.rendering.width;
+    let height = settings.rendering.height;
+    let window = video.window("plasma", width as u32, height as u32).resizable().build().unwrap();
 
     let mut renderer = window.renderer().build().unwrap();
     let mut plasma = Plasma::new(
         &mut renderer,
-        WIDTH,
-        HEIGHT,
+        width,
+        height,
         settings.genetics.genome,
         settings.genetics.population
     );
@@ -75,7 +71,7 @@ pub fn run_interactive(settings: PlasmaSettings) {
 
         // Sleep to hit framerate
         let duration = timestamp.elapsed().unwrap();
-        let target_ms = 1000.0/FRAMES_PER_SECOND;
+        let target_ms = 1000.0/settings.rendering.frames_per_second;
         let actual_ms = duration.subsec_nanos() as f32/1_000_000.0 +
             duration.as_secs() as f32*1000.0;
         if actual_ms > target_ms {
@@ -111,12 +107,12 @@ pub struct Plasma {
 }
 
 impl Plasma {
-    pub fn new(renderer: &mut Renderer, width: u32, height: u32, starting_genome: Genome, population: Population) -> Plasma {
+    pub fn new(renderer: &mut Renderer, width: usize, height: usize, starting_genome: Genome, population: Population) -> Plasma {
         Plasma {
-            image: Image::new(width as usize, height as usize),
+            image: Image::new(width, height),
             population: population,
             renderer: PlasmaRenderer::new(starting_genome),
-            texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, width, height).unwrap(),
+            texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, width as u32, height as u32).unwrap(),
             time: 0.0
         }
     }

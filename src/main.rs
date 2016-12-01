@@ -20,31 +20,58 @@ use settings::{GeneticSettings,RenderingSettings,OutputMode,OutputSettings,Plasm
 use std::cmp::max;
 use std::env;
 use std::io::Write;
+use std::process::exit;
 
 const STARTING_POPULATION_SIZE: usize = 8;
 const MAX_POPULATION_SIZE: usize = 32;
+
+macro_rules! errorln {
+    ($x:expr, $($y:tt)*) => { writeln!(&mut std::io::stderr(), $x, $($y)*).unwrap() };
+}
 
 fn main() {
     let opts = create_options();
     let matches = match opts.parse(env::args()) {
         Ok(m) => m,
-        Err(s) => {
-            writeln!(&mut std::io::stderr(), "Error parsing arguments: {:?}", s).unwrap();
-            return;
-        }
+        Err(e) => exit_with_error(&format!("{:?}", e))
     };
+    if matches.opt_present("help") {
+        exit_with_help();
+    }
     let params = match build_plasma_settings(matches) {
         Ok(params) => params,
-        Err(s) => {
-            writeln!(&mut std::io::stderr(), "{}", s).unwrap();
-            return;
-        }
+        Err(message) => exit_with_error(&message)
     };
 
     match params.output.mode {
         OutputMode::File{..} => file::output_gif(params),
         OutputMode::Interactive => interactive::run_interactive(params)
     };
+}
+
+fn get_program_name() -> String {
+    env::args().nth(0).unwrap_or("plasma".to_string())
+}
+
+fn exit_with_error(message: &str) -> ! {
+    let program_name = get_program_name();
+    errorln!("{program}: {message}", program = program_name, message = message);
+    errorln!("Run '{program} --help' for more information.", program = program_name);
+    exit(1)
+}
+
+fn exit_with_help() -> ! {
+    let program_name = get_program_name();
+    let header = format!(
+        "\
+            Usage: {program} [OPTION]... [GENOME]...\n\
+            GENOME is a Base64 string that represents a plasma's pattern and color.\n\
+            More than one genome can be specified.\
+        ",
+        program = program_name
+    );
+    println!("{}", create_options().usage(&header));
+    exit(0)
 }
 
 fn create_options() -> Options {
@@ -106,7 +133,7 @@ fn build_plasma_settings(matches: Matches) -> Result<PlasmaSettings, String> {
     let mut rendering_settings = match output_settings.mode {
         OutputMode::Interactive => RenderingSettings {
             dithering: false,
-            frames_per_second: 15.0,
+            frames_per_second: 16.0,
             loop_duration: 60.0,
             palette_size: None,
             width: 640,
