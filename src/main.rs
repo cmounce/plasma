@@ -33,7 +33,7 @@ fn main() {
     let opts = create_options();
     let matches = match opts.parse(env::args()) {
         Ok(m) => m,
-        Err(e) => exit_with_error(&format!("{:?}", e))
+        Err(e) => exit_with_error(&format!("{}", e))
     };
     if matches.opt_present("help") {
         exit_with_help();
