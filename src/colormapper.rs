@@ -1,7 +1,7 @@
 use fastmath::FastMath;
 use genetics::{Chromosome, Gene};
 use gradient::{Color, ControlPoint, Gradient};
-use std::f32;
+use std::{f32,u16};
 
 const LOOKUP_TABLE_SIZE: usize = 512;
 pub const NUM_COLOR_GENES: usize = 8;
@@ -130,44 +130,47 @@ impl ControlPoint {
 }
 
 pub struct ColorMapper {
-    lookup_table: [Color; LOOKUP_TABLE_SIZE]
+    palette: Vec<Color>,
+    lookup_table: [u16; LOOKUP_TABLE_SIZE]
 }
 
 impl ColorMapper {
-    pub fn new(chromosome: &Chromosome) -> ColorMapper {
-        let mut lookup_table = [Color {r:0, g:0, b:0}; LOOKUP_TABLE_SIZE];
-        let mut control_points = vec![];
-        for gene in chromosome.genes.iter() {
-            if let Some(cp) = ControlPoint::from_gene(&gene) {
-                control_points.push(cp);
-            }
-        }
+    pub fn new(chromosome: &Chromosome, palette_size: Option<usize>) -> ColorMapper {
+        // Build gradient, palette
+        let control_points = chromosome.genes.iter().
+            filter_map(|g| ControlPoint::from_gene(&g)).collect();
         let gradient = Gradient::new(control_points);
-        let palette = ColorMapper::calculate_palette(&gradient, 255);
+        let palette = ColorMapper::calculate_palette(
+            &gradient,
+            palette_size.unwrap_or(LOOKUP_TABLE_SIZE)
+        );
+
+        // Build lookup table
+        let mut lookup_table = [0; LOOKUP_TABLE_SIZE];
         for i in 0..LOOKUP_TABLE_SIZE {
              let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
              let color = gradient.get(position);
-             let index = ColorMapper::quantize(color, &palette[..]);
-             lookup_table[i] = palette[index as usize];
+             lookup_table[i] = ColorMapper::quantize(color, &palette[..]);
         }
 
         ColorMapper {
+            palette: palette,
             lookup_table: lookup_table
         }
     }
 
-    fn quantize(color: Color, palette: &[Color]) -> u8 {
+    fn quantize(color: Color, palette: &[Color]) -> u16 {
         palette.iter().enumerate().min_by_key(|index_color|
             color.sq_dist(*index_color.1)
-        ).unwrap().0 as u8
+        ).unwrap().0 as u16
     }
 
     fn calculate_palette(gradient: &Gradient, palette_size: usize) -> Vec<Color> {
-        assert!(palette_size >= 1);
-        assert!(palette_size <= 256);
+        assert!(palette_size >= 2);
+        assert!(palette_size <= u16::MAX as usize);
 
         // Sample many points on the gradient, more points than there are palette colors
-        let num_samples = 512;
+        let num_samples = LOOKUP_TABLE_SIZE;
         let sample_step = 1.0/num_samples as f32;
         let mut samples = Vec::with_capacity(num_samples);
         for i in 0..num_samples {
@@ -175,7 +178,7 @@ impl ColorMapper {
             samples.push(gradient.get(position));
         }
 
-        // Create an initial palette by subsampling the samples Vec
+        // Create an initial palette by sampling the gradient
         let mut palette = Vec::with_capacity(palette_size);
         let palette_step = 1.0/palette_size as f32;
         for i in 0..palette_size {
@@ -216,7 +219,8 @@ impl ColorMapper {
 
     pub fn convert(&self, value: f32) -> Color {
         let index = (value.wrap()*(LOOKUP_TABLE_SIZE as f32)).floor() as usize % LOOKUP_TABLE_SIZE;
-        self.lookup_table[index]
+        let palette_index = self.lookup_table[index];
+        self.palette[palette_index as usize]
     }
 }
 

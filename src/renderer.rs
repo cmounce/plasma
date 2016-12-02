@@ -37,7 +37,7 @@ impl Image {
 
 impl PlasmaRenderer {
     pub fn new(genome: Genome) -> PlasmaRenderer {
-        let color_mapper = ColorMapper::new(&genome.color);
+        let color_mapper = ColorMapper::new(&genome.color, Some(256));
         let formulas = PlasmaFormulas::from_chromosome(&genome.pattern);
         PlasmaRenderer {
             genome: genome,
