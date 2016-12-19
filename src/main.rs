@@ -70,6 +70,7 @@ fn exit_with_help() -> ! {
         ",
         program = program_name
     );
+    // TODO: Add instructions for interactive mode
     println!("{}", create_options().usage(&header));
     exit(0)
 }
@@ -85,6 +86,7 @@ fn create_options() -> Options {
     opts.optopt("w", "width", "Width, in pixels", "X");
     opts.optopt("h", "height", "Height, in pixels", "Y");
     opts.optflag("", "help", "Show this help text");
+    // TODO: Add option for inputting genomes with a text file (one genome per line)
     opts
 }
 
