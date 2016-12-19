@@ -4,7 +4,7 @@ use settings::{OutputMode,PlasmaSettings};
 use std::fs::File;
 
 pub fn output_gif(settings: PlasmaSettings) {
-    let mut renderer = PlasmaRenderer::new(settings.genetics.genome);
+    let mut renderer = PlasmaRenderer::new(&settings.genetics.genome);
     let mut image = Image::new(settings.rendering.width, settings.rendering.height);
 
     let path = match settings.output.mode {

@@ -13,7 +13,6 @@ pub struct Image {
 }
 
 pub struct PlasmaRenderer {
-    pub genome: Genome,
     formulas: PlasmaFormulas,
     color_mapper: ColorMapper
 }
@@ -36,11 +35,10 @@ impl Image {
 }
 
 impl PlasmaRenderer {
-    pub fn new(genome: Genome) -> PlasmaRenderer {
+    pub fn new(genome: &Genome) -> PlasmaRenderer {
         let color_mapper = ColorMapper::new(&genome.color, Some(256));
         let formulas = PlasmaFormulas::from_chromosome(&genome.pattern);
         PlasmaRenderer {
-            genome: genome,
             formulas: formulas,
             color_mapper: color_mapper
         }

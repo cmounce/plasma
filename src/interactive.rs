@@ -7,7 +7,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::{Renderer, Texture};
 use settings::PlasmaSettings;
-use std::{f32, mem, thread};
+use std::{f32, thread};
 use std::fs::File;
 use std::time::{Duration, SystemTime};
 
@@ -23,9 +23,10 @@ pub fn run_interactive(settings: PlasmaSettings) {
         &mut renderer,
         width,
         height,
-        settings.genetics.genome,
+        &settings.genetics.genome,
         settings.genetics.population
     );
+    let mut current_genome = settings.genetics.genome;
 
     let mut running = true;
     let mut event_pump = sdl.event_pump().unwrap();
@@ -40,13 +41,13 @@ pub fn run_interactive(settings: PlasmaSettings) {
                 Event::KeyDown { keycode: Some(keycode), ..} => {
                     match keycode {
                         Keycode::Equals | Keycode::Plus | Keycode::KpPlus => {
-                            plasma.approve();
+                            current_genome = plasma.approve(current_genome);
                         },
                         Keycode::Minus | Keycode::Underscore | Keycode::KpMinus => {
-                            plasma.reject();
+                            current_genome = plasma.reject();
                         },
                         Keycode::E => {
-                            plasma.export_current_genome();
+                            plasma.export_current_genome(&current_genome);
                         },
                         Keycode::S => {
                             plasma.screenshot();
@@ -107,11 +108,11 @@ pub struct Plasma {
 }
 
 impl Plasma {
-    pub fn new(renderer: &mut Renderer, width: usize, height: usize, starting_genome: Genome, population: Population) -> Plasma {
+    pub fn new(renderer: &mut Renderer, width: usize, height: usize, starting_genome: &Genome, population: Population) -> Plasma {
         Plasma {
             image: Image::new(width, height),
             population: population,
-            renderer: PlasmaRenderer::new(starting_genome),
+            renderer: PlasmaRenderer::new(&starting_genome),
             texture: renderer.create_texture_streaming(PixelFormatEnum::RGB24, width as u32, height as u32).unwrap(),
             time: 0.0
         }
@@ -133,17 +134,17 @@ impl Plasma {
         self.time += time;
     }
 
-    pub fn approve(&mut self) {
-        let old_genome = self.replace_renderer();
-        self.population.add(old_genome);
+    pub fn approve(&mut self, genome: Genome) -> Genome {
+        self.population.add(genome);
+        self.replace_renderer()
     }
 
-    pub fn reject(&mut self) {
-        self.replace_renderer();
+    pub fn reject(&mut self) -> Genome {
+        self.replace_renderer()
     }
 
-    pub fn export_current_genome(&self) {
-        println!("{}", self.renderer.genome.to_base64());
+    pub fn export_current_genome(&self, genome: &Genome) {
+        println!("{}", genome.to_base64());
     }
 
     pub fn screenshot(&self) {
@@ -165,9 +166,8 @@ impl Plasma {
     fn replace_renderer(&mut self) -> Genome {
         if let Some((g1, g2)) = self.population.get_pair() {
             let child = g1.breed(g2);
-            let new_renderer = PlasmaRenderer::new(child);
-            let old_renderer = mem::replace(&mut self.renderer, new_renderer);
-            old_renderer.genome
+            self.renderer = PlasmaRenderer::new(&child);
+            child
         } else {
             panic!("Could not get a breeding pair from population struct");
         }
