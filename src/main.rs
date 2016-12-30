@@ -2,6 +2,7 @@ extern crate getopts;
 extern crate gif;
 extern crate sdl2;
 
+mod asyncrenderer;
 mod colormapper;
 mod fastmath;
 mod file;

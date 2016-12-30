@@ -11,7 +11,7 @@ pub struct GeneticSettings {
     pub population: Population
 }
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct RenderingSettings {
     pub dithering: bool,
     pub frames_per_second: f32,
