@@ -2,14 +2,13 @@ use genetics::Genome;
 use renderer::{Image, PlasmaRenderer};
 use settings::RenderingSettings;
 use std::thread;
-use std::thread::JoinHandle;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
 pub struct AsyncRenderer {
-    thread: JoinHandle<()>,
     request_tx: Sender<RenderRequest>,
-    image_rx: Receiver<Image>
+    image_rx: Receiver<Image>,
+    genome_set: bool
 }
 
 enum RenderRequest {
@@ -22,23 +21,25 @@ impl AsyncRenderer {
         let (request_tx, request_rx) = mpsc::channel();
         let (image_tx, image_rx) = mpsc::channel();
         let settings_clone = settings.clone();
-        let thread = thread::spawn(|| {
+        thread::spawn(|| {
             AsyncRenderer::thread(request_rx, image_tx, settings_clone);
         });
 
         AsyncRenderer {
-            thread: thread,
             request_tx: request_tx,
-            image_rx: image_rx
+            image_rx: image_rx,
+            genome_set: false
         }
     }
 
     pub fn set_genome(&mut self, genome: &Genome) {
         let request = RenderRequest::SetGenome(genome.clone());
         self.request_tx.send(request).unwrap();
+        self.genome_set = true;
     }
 
     pub fn render(&mut self, width: usize, height: usize, time: f32) {
+        assert!(self.genome_set, "Must call set_genome() before calling render()");
         let request = RenderRequest::Render { width: width, height: height, time: time };
         self.request_tx.send(request).unwrap();
     }
