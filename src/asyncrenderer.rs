@@ -3,17 +3,20 @@ use renderer::{Image, PlasmaRenderer};
 use settings::RenderingSettings;
 use std::thread;
 use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, RecvError};
 
 pub struct AsyncRenderer {
-    request_tx: Sender<RenderRequest>,
+    request_tx: Sender<Request>,
     image_rx: Receiver<Image>,
+    genome: Option<Genome>,
     genome_set: bool
 }
 
-enum RenderRequest {
-    SetGenome(Genome),
-    Render { width: usize, height: usize, time: f32 }
+struct Request {
+    genome: Option<Genome>,
+    width: usize,
+    height: usize,
+    time: f32
 }
 
 impl AsyncRenderer {
@@ -28,19 +31,24 @@ impl AsyncRenderer {
         AsyncRenderer {
             request_tx: request_tx,
             image_rx: image_rx,
+            genome: None,
             genome_set: false
         }
     }
 
     pub fn set_genome(&mut self, genome: &Genome) {
-        let request = RenderRequest::SetGenome(genome.clone());
-        self.request_tx.send(request).unwrap();
+        self.genome = Some(genome.clone());
         self.genome_set = true;
     }
 
     pub fn render(&mut self, width: usize, height: usize, time: f32) {
         assert!(self.genome_set, "Must call set_genome() before calling render()");
-        let request = RenderRequest::Render { width: width, height: height, time: time };
+        let request = Request {
+            genome: self.genome.take(),
+            width: width,
+            height: height,
+            time: time
+        };
         self.request_tx.send(request).unwrap();
     }
 
@@ -48,19 +56,31 @@ impl AsyncRenderer {
         self.image_rx.try_recv().ok()
     }
 
-    fn thread(rx: Receiver<RenderRequest>, tx: Sender<Image>, settings: RenderingSettings) {
+    fn thread(rx: Receiver<Request>, tx: Sender<Image>, settings: RenderingSettings) {
         let mut renderer = None;
-        while let Ok(request) = rx.recv() {
-            match request {
-                RenderRequest::SetGenome(genome) => {
-                    renderer = Some(PlasmaRenderer::new(&genome));
-                },
-                RenderRequest::Render{width, height, time} => {
-                    let mut image = Image::new(width, height);
-                    renderer.as_mut().unwrap().render(&mut image, time);
-                    tx.send(image).unwrap();
-                }
+        loop {
+            // Wait for a new request
+            let mut request = match rx.recv() {
+                Ok(request) => request,
+                Err(RecvError) => return
             };
+
+            // Fast-forward through backlog (if any) to get to the latest request
+            while let Ok(req) = rx.try_recv() {
+                let old_genome = request.genome;
+                request = req;
+                // Use previous genome if none specified
+                request.genome = request.genome.or(old_genome);
+            }
+
+            // Render frame
+            if let Some(genome) = request.genome {
+                // If genome has changed since last render, rebuild renderer
+                renderer = Some(PlasmaRenderer::new(&genome));
+            }
+            let mut image = Image::new(request.width, request.height);
+            renderer.as_mut().unwrap().render(&mut image, request.time);
+            tx.send(image).unwrap();
         }
     }
 }
