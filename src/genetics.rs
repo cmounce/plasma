@@ -240,6 +240,11 @@ impl Population {
             Some((self.genomes.get(index1).unwrap(), self.genomes.get(index2).unwrap()))
         }
     }
+
+    pub fn breed(&self) -> Genome {
+        let (a, b) = self.get_pair().expect("Couldn't get breeding pair");
+        a.breed(&b)
+    }
 }
 
 #[cfg(test)]
