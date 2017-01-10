@@ -177,24 +177,24 @@ mod tests {
 
     #[test]
     fn test_asyncrenderer_cancellation() {
-        // Make a small request
-        let genome = rand_genome();
+        // Warm up the AsyncRenderer by making a small request and waiting for it to finish
         let mut ar = AsyncRenderer::new(&dummy_settings());
-        ar.set_genome(&genome);
-        ar.render(32, 32, 0.0);
+        ar.set_genome(&rand_genome());
+        ar.render(2, 2, 0.0);
+        wait_for_image(&mut ar);
 
-        // A moment later, make another small request
-        sleep(Duration::from_millis(200));
-        ar.render(32, 32, 0.5);
+        // Start of actual test: Render image A, but don't retrieve the result
+        ar.render(3, 3, 0.25);
+        sleep(Duration::from_millis(10)); // Wait for render to complete
 
-        // Assert that the result from the first request has been cleared out
+        // Render image B
+        ar.render(5, 5, 0.5);
+
+        // Assert that image A is no longer available
         assert!(ar.get_image().is_none());
 
-        // Assert that we eventually get a result for the second request
-        let actual = wait_for_image(&mut ar);
-        let mut r = PlasmaRenderer::new(&genome);
-        let mut expected = Image::new(32, 32);
-        r.render(&mut expected, 0.5);
-        assert_eq!(expected.pixel_data, actual.pixel_data);
+        // Assert that we eventually get image B (and not A)
+        let image = wait_for_image(&mut ar);
+        assert_eq!(image.width, 5);
     }
 }
