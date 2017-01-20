@@ -3,6 +3,7 @@ use fastmath::FastMath;
 use formulas::PlasmaFormulas;
 use genetics::Genome;
 use gradient::Color;
+use settings::RenderingSettings;
 use std::f32;
 
 pub struct Image {
@@ -35,9 +36,8 @@ impl Image {
 }
 
 impl PlasmaRenderer {
-    // TODO: PlasmaRenderer should take a RenderingSettings
-    pub fn new(genome: &Genome) -> PlasmaRenderer {
-        let color_mapper = ColorMapper::new(&genome.color, Some(256));
+    pub fn new(genome: &Genome, settings: &RenderingSettings) -> PlasmaRenderer {
+        let color_mapper = ColorMapper::new(&genome.color, &settings);
         let formulas = PlasmaFormulas::from_chromosome(&genome.pattern);
         PlasmaRenderer {
             formulas: formulas,

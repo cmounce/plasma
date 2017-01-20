@@ -96,7 +96,7 @@ impl AsyncRenderer {
             // Render frame
             if let Some(genome) = request.genome {
                 // If genome has changed since last render, rebuild renderer
-                renderer = Some(PlasmaRenderer::new(&genome));
+                renderer = Some(PlasmaRenderer::new(&genome, &settings));
             }
             let mut image = Image::new(request.width, request.height);
             renderer.as_mut().unwrap().render(&mut image, request.time);
@@ -169,7 +169,7 @@ mod tests {
         let image1 = wait_for_image(&mut ar);
 
         // Compare image with regular Renderer
-        let mut r = PlasmaRenderer::new(&genome);
+        let mut r = PlasmaRenderer::new(&genome, &dummy_settings());
         let mut image2 = Image::new(32, 32);
         r.render(&mut image2, 0.0);
         assert_eq!(image1.pixel_data, image2.pixel_data);

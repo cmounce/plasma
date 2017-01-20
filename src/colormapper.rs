@@ -1,6 +1,7 @@
 use fastmath::FastMath;
 use genetics::{Chromosome, Gene};
 use gradient::{Color, ControlPoint, Gradient};
+use settings::RenderingSettings;
 use std::{f32,u16};
 
 const LOOKUP_TABLE_SIZE: usize = 512;
@@ -135,14 +136,14 @@ pub struct ColorMapper {
 }
 
 impl ColorMapper {
-    pub fn new(chromosome: &Chromosome, palette_size: Option<usize>) -> ColorMapper {
+    pub fn new(chromosome: &Chromosome, settings: &RenderingSettings) -> ColorMapper {
         // Build gradient, palette
         let control_points = chromosome.genes.iter().
             filter_map(|g| ControlPoint::from_gene(&g)).collect();
         let gradient = Gradient::new(control_points);
         let palette = ColorMapper::calculate_palette(
             &gradient,
-            palette_size.unwrap_or(LOOKUP_TABLE_SIZE)
+            settings.palette_size.unwrap_or(LOOKUP_TABLE_SIZE)
         );
 
         // Build lookup table
