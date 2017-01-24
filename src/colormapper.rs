@@ -223,6 +223,10 @@ impl ColorMapper {
         let palette_index = self.lookup_table[index];
         self.palette[palette_index as usize]
     }
+
+    pub fn get_palette(&self) -> Vec<Color> {
+        self.palette.clone()
+    }
 }
 
 #[cfg(test)]

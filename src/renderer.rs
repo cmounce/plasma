@@ -7,7 +7,6 @@ use settings::RenderingSettings;
 use std::f32;
 
 pub struct Image {
-    // Should this have a flag: indexed vs. true color?
     pub width: usize,
     pub height: usize,
     pub pixel_data: Vec<u8>
@@ -66,5 +65,9 @@ impl PlasmaRenderer {
     fn calculate_color(&self, x: f32, y: f32) -> Color {
         let value = self.formulas.get_value(x, y);
         self.color_mapper.convert(value)
+    }
+
+    pub fn get_palette(&self) -> Vec<Color> {
+        self.color_mapper.get_palette()
     }
 }
