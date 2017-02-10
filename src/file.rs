@@ -5,72 +5,104 @@ use settings::{OutputMode,PlasmaSettings};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::iter;
+use std::io::Write;
 use std::ops::Range;
 
 pub fn output_gif(settings: PlasmaSettings) {
+    // Render all the frames at once
     let mut renderer = PlasmaRenderer::new(&settings.genetics.genome, &settings.rendering);
-    let mut image_rgb = Image::new(settings.rendering.width, settings.rendering.height);
+    let num_frames = (settings.rendering.frames_per_second*settings.rendering.loop_duration).
+        round() as usize;
+    let times = (0..num_frames).map(|i| i as f32/num_frames as f32);
+    let frames: Vec<Image> = times.map(|time| {
+        let mut image = Image::new(settings.rendering.width, settings.rendering.height);
+        renderer.render(&mut image, time);
+        image
+    }).collect();
 
-    // Set up global palette
-    let image_colors = renderer.get_palette();
-    let transparency_color = Color::new(0, 0, 0);
-    let colors = iter::once(&transparency_color).chain(image_colors.iter());
-    let mut palette_map = BTreeMap::new();
-    let mut palette_bytes = vec![];
-    for (index, color) in colors.enumerate() {
-        palette_map.insert((color.r, color.g, color.b), index as u8);
-        palette_bytes.push(color.r);
-        palette_bytes.push(color.g);
-        palette_bytes.push(color.b);
+    // Convert frames to indexed
+    let mut palette = renderer.get_palette();
+    let mut indexed_frames: Vec<Vec<u8>> = {
+        let mut palette_map = BTreeMap::new();
+        for (index, color) in palette.iter().enumerate() {
+            palette_map.insert((color.r, color.g, color.b), index as u8);
+        }
+        frames.iter().map(|frame|
+            frame.pixel_data.chunks(3).map(|slice| {
+                let rgb = (slice[0], slice[1], slice[2]);
+                *palette_map.get(&rgb).expect("Image contained color not in palette")
+            }).collect()
+        ).collect()
+    };
+
+    // Encode a GIF as-is (no transparent pixels)
+    let mut gif_bytes = encode_gif(&indexed_frames[..], &palette[..], &settings, false);
+
+    // Encode the GIF again, but this time try to optimize it by using transparent pixels
+    if palette.len() < 256 {
+        // Add transparency to the frames
+        palette.insert(0, Color::new(0,0,0)); // Add transparent palette entry
+        for indexed_frame in indexed_frames.iter_mut() {
+            for index in indexed_frame.iter_mut() {
+                *index += 1; // Adjust existing indexes to accommodate transparency
+            }
+        }
+
+        // Optimize pixels
+        let mut previous_indexed_frame = indexed_frames[0].clone();
+        for i in 1..indexed_frames.len() {
+            let original_indexed_frame = indexed_frames[i].clone();
+            optimize_pixels(&previous_indexed_frame[..], &mut indexed_frames[i][..]);
+            previous_indexed_frame = original_indexed_frame;
+        }
+
+        let new_gif_bytes = encode_gif(&indexed_frames[..], &palette[..], &settings, true);
+        if new_gif_bytes.len() < gif_bytes.len() {
+            // Only use transparency if it results in a smaller file
+            gif_bytes = new_gif_bytes;
+        }
     }
 
-    // Open file, initialize GIF encoder
+    // Actually output the gif
     let path = match settings.output.mode {
         OutputMode::File{path} => path,
         _ => panic!("OutputMode must be File")
     };
-    let mut file = File::create(path).unwrap();
-    let mut encoder = Encoder::new(
-        &mut file,
-        image_rgb.width as u16,
-        image_rgb.height as u16,
-        &palette_bytes[..]
-    ).unwrap();
-    encoder.set(Repeat::Infinite).unwrap();
+    let mut file = File::create(path).expect("Couldn't open file");
+    file.write_all(&gif_bytes[..]).expect("Couldn't write GIF data to file");
+}
 
-    let mut previous_pixels: Option<Vec<u8>> = None;
-    let fps = settings.rendering.frames_per_second;
-    for seconds in 0..60 {
-        for frames in 0..(fps as u8) {
-            let time = seconds as f32 + frames as f32 / fps;
-            let adj_time = time/60.0;
-            renderer.render(&mut image_rgb, adj_time);
+fn encode_gif(indexed_frames: &[Vec<u8>], palette: &[Color],
+              settings: &PlasmaSettings, transparent_index_zero: bool) -> Vec<u8> {
+    // Calculate frame delay
+    let frame_delay_seconds = settings.rendering.loop_duration/(indexed_frames.len() as f32);
+    let frame_delay_centiseconds = (frame_delay_seconds/100.0).round() as u16;
 
-            // Convert RGB image to indexed
-            let mut pixels: Vec<u8> = image_rgb.pixel_data.chunks(3).map(|slice| {
-                let rgb = (slice[0], slice[1], slice[2]);
-                *palette_map.get(&rgb).expect("Image contained color not in palette")
-            }).collect();
+    // Output GIF byte stream
+    let mut output = vec![];
+    {
+        let palette_bytes: Vec<u8> = palette.iter().flat_map(|c| vec![c.r, c.g, c.b]).collect();
+        let mut encoder = Encoder::new(
+            &mut output,
+            settings.rendering.width as u16,
+            settings.rendering.height as u16,
+            &palette_bytes[..]
+        ).unwrap();
+        encoder.set(Repeat::Infinite).unwrap();
 
-            // Optimize image by making pixels transparent
-            if let Some(previous_pixels) = previous_pixels {
-                optimize_pixels(&previous_pixels[..], &mut pixels[..]);
-            }
-
-            // Create frame from image
-            {
-                let mut frame = Frame::default();
-                frame.width = image_rgb.width as u16;
-                frame.height = image_rgb.height as u16;
-                frame.delay = (100.0/settings.rendering.frames_per_second).round() as u16;
-                frame.buffer = Cow::Borrowed(&pixels);
+        for indexed_frame in indexed_frames.iter() {
+            let mut frame = Frame::default();
+            frame.width = settings.rendering.width as u16;
+            frame.height = settings.rendering.height as u16;
+            frame.delay = frame_delay_centiseconds;
+            frame.buffer = Cow::Borrowed(indexed_frame);
+            if transparent_index_zero {
                 frame.transparent = Some(0);
-                encoder.write_frame(&frame).unwrap();
             }
-            previous_pixels = Some(pixels);
+            encoder.write_frame(&frame).unwrap();
         }
     }
+    output
 }
 
 fn optimize_pixels(previous_pixels: &[u8], pixels: &mut [u8]) {
