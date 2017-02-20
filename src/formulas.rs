@@ -60,7 +60,9 @@ impl ByteFloat for u8 {
     }
 
     fn to_ifloat(&self) -> f32 {
-        (*self as f32/255.0*16.0 - 8.0).round()
+        let adj = (-1.0).lerp(1.0, self.to_float());
+        let distance = (8.0 as f32 + 1.0).powf(adj.abs()).round() - 1.0;
+        adj.signum()*distance
     }
 }
 
@@ -175,7 +177,24 @@ mod tests {
     use fastmath::FastMath;
     use genetics::Gene;
     use super::FORMULA_GENE_SIZE;
-    use super::{Formula,WaveFormula,RotatingWaveFormula,CircularWaveFormula};
+    use super::{ByteFloat,Formula,WaveFormula,RotatingWaveFormula,CircularWaveFormula};
+
+    #[test]
+    fn test_bytefloat_float() {
+        assert_eq!(0.to_float(), 0.0);
+        assert_eq!(255.to_float(), 1.0);
+    }
+
+    #[test]
+    fn test_bytefloat_ifloat() {
+        assert_eq!(0.to_ifloat(), -8.0);
+        assert_eq!(127.to_ifloat(), 0.0);
+        assert_eq!(255.to_ifloat(), 8.0);
+        for i in 0..256 {
+            let f = (i as u8).to_ifloat();
+            assert_eq!(f.fract(), 0.0, "{}.to_ifloat() is not a whole number", i);
+        }
+    }
 
     // Compares a Formula with a reference implementation at various coordinates and times.
     // - optimized is the Formula to test.
