@@ -76,7 +76,7 @@ fn encode_gif(indexed_frames: &[Vec<u8>], palette: &[Color],
               settings: &PlasmaSettings, transparent_index_zero: bool) -> Vec<u8> {
     // Calculate frame delay
     let frame_delay_seconds = settings.rendering.loop_duration/(indexed_frames.len() as f32);
-    let frame_delay_centiseconds = (frame_delay_seconds/100.0).round() as u16;
+    let frame_delay_centiseconds = (frame_delay_seconds*100.0).round() as u16;
 
     // Output GIF byte stream
     let mut output = vec![];
