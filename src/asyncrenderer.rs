@@ -104,7 +104,12 @@ impl AsyncRenderer {
                 request_id: request.request_id,
                 image: image
             };
-            tx.send(response).unwrap();
+
+            // Send response back to main thread
+            if tx.send(response).is_err() {
+                // User quit in the middle of us processing the request
+                return;
+            }
         }
     }
 }
