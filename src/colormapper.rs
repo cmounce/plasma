@@ -1,6 +1,6 @@
 use fastmath::FastMath;
 use genetics::{Chromosome, Gene};
-use gradient::{Color, ControlPoint, Gradient};
+use gradient::{Color, ControlPoint, Gradient, LinearColor};
 use settings::RenderingSettings;
 use std::{f32,u16};
 
@@ -22,20 +22,17 @@ impl Color {
 
     fn avg(colors: &[Color]) -> Color {
         assert!(colors.len() > 0);
-        macro_rules! avg_component {
-            ($component:ident) => {{
-                let gamma = 2.2;
-                let linear_components = colors.iter().map(|c| (c.$component as f32).powf(gamma));
-                let linear_sum: f32 = linear_components.sum();
-                let linear_avg = linear_sum/colors.len() as f32;
-                linear_avg.powf(1.0/gamma).round() as u8
-            }};
-        }
-        Color {
-            r: avg_component!(r),
-            g: avg_component!(g),
-            b: avg_component!(b)
-        }
+        let linear_colors = colors.iter().map(|c| c.to_linear());
+        let linear_totals = linear_colors.fold([0.0, 0.0, 0.0], |acc, c| {
+            [acc[0] + c.r as f32, acc[1] + c.g as f32, acc[2] + c.b as f32]
+        });
+        let avg_component = |total: f32| (total/(colors.len() as f32)).round() as u16;
+        let linear_color = LinearColor {
+            r: avg_component(linear_totals[0]),
+            g: avg_component(linear_totals[1]),
+            b: avg_component(linear_totals[2])
+        };
+        linear_color.to_gamma()
     }
 
     fn from_hsl(hue: f32, saturation: f32, lightness: f32) -> Color {
@@ -66,18 +63,16 @@ impl Color {
             _ => panic!("Invalid sector value {}", sector)
         };
 
-        // Helper function: convert linear f32 to gamma-correct u8 component
-        fn to_component(linear: f32) -> u8 {
-            let gamma = 2.2;
-            let full = 255.0_f32.powf(gamma);
-            (linear*full).powf(1.0/gamma).round() as u8
+        // Helper function: convert f32 to u16 component
+        fn to_component(f: f32) -> u16 {
+            (f*65535.0).round() as u16
         }
-
-        Color::new(
-            to_component(r),
-            to_component(g),
-            to_component(b)
-        )
+        let linear_color = LinearColor {
+            r: to_component(r),
+            g: to_component(g),
+            b: to_component(b)
+        };
+        linear_color.to_gamma()
     }
 
     /*
@@ -331,12 +326,13 @@ mod tests {
             let cp = ControlPoint::from_gene(&g).unwrap();
             return cp.color;
         }
-        assert_eq!(to_color([255,   0,   0, 127, 255]), Color::from_square_hsl(-1.0, -1.0, 0.5));
-        assert_eq!(to_color([255,   0, 255, 127, 255]), Color::from_square_hsl(-1.0,  1.0, 0.5));
-        assert_eq!(to_color([255, 255,   0, 127, 255]), Color::from_square_hsl( 1.0, -1.0, 0.5));
-        assert_eq!(to_color([255, 255, 255, 127, 255]), Color::from_square_hsl( 1.0,  1.0, 0.5));
-        assert_eq!(to_color([255,   0,   0, 255, 255]), Color::from_square_hsl(-1.0, -1.0, 1.0));
-        assert_eq!(to_color([255,   0,   0,   0, 255]), Color::from_square_hsl(-1.0, -1.0, 0.0));
+        let half = 127.0/255.0; // Exactly 50% lightness cannot be expressed, because 255 is odd
+        assert_eq!(to_color([255,   0,   0, 127, 255]), Color::from_square_hsl(0.0, 0.0, half));
+        assert_eq!(to_color([255,   0, 255, 127, 255]), Color::from_square_hsl(0.0, 1.0, half));
+        assert_eq!(to_color([255, 255,   0, 127, 255]), Color::from_square_hsl(1.0, 0.0, half));
+        assert_eq!(to_color([255, 255, 255, 127, 255]), Color::from_square_hsl(1.0, 1.0, half));
+        assert_eq!(to_color([255,   0,   0, 255, 255]), Color::from_square_hsl(0.0, 0.0, 1.0));
+        assert_eq!(to_color([255,   0,   0,   0, 255]), Color::from_square_hsl(0.0, 0.0, 0.0));
     }
 
     // Make sure max/min byte values map to different positions

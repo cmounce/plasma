@@ -1,10 +1,19 @@
 use fastmath::FastMath;
 
+const GAMMA: f32 = 2.2;
+
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
     pub b: u8
+}
+
+#[derive(Copy,Clone,Eq,PartialEq,Debug)]
+pub struct LinearColor {
+    pub r: u16,
+    pub g: u16,
+    pub b: u16
 }
 
 #[derive(Copy,Clone,Debug)]
@@ -34,21 +43,62 @@ impl Color {
     }
 
     pub fn lerp(&self, other: Color, position: f32) -> Color {
-        assert!(position >= 0.0 && position <= 1.0);
+        self.to_linear().lerp(other.to_linear(), position).to_gamma()
+    }
 
-        // Interpolate two color components in a gamma-correct way
-        fn gamma_interpolate(a: u8, b: u8, position: f32) -> u8 {
-            let gamma = 2.2;
-            let a_linear = (a as f32).powf(gamma);
-            let b_linear = (b as f32).powf(gamma);
-            let lerp = a_linear.lerp(b_linear, position);
-            lerp.powf(1.0/gamma).round() as u8
-        }
+    pub fn to_linear(&self) -> LinearColor {
+        LinearColor::from_gamma(*self)
+    }
+}
 
+impl LinearColor {
+    fn component_to_linear(c: u8) -> u16 {
+        let gamma_float = (c as f32)/255.0;
+        let linear_float = gamma_float.powf(GAMMA);
+        /*
+         * Hack to fit a linear color component in a u16, while allowing round-trip conversion
+         *
+         * If we called round() to get the nearest u16, inputs 0 and 1 would have the same output:
+         *      65535.0*(0.0/255.0)**2.2 = 0.0      (rounds to 0)
+         *      65535.0*(1.0/255.0)**2.2 = 0.3327   (also rounds to 0)
+         * This would result in loss of information: Color::new(1, 1, 1).to_linear() would return
+         * the same thing as Color::new(0, 0, 0).to_linear().
+         *
+         * To avoid that, we call ceil() to get the nearest u16. Similarly, when we go in reverse
+         * (linear to gamma), we call floor(). With a gamma of 2.2, this nudging-of-the-numbers is
+         * just barely enough to avoid loss of information when doing round-trip conversions.
+         */
+        (linear_float*65535.0).ceil() as u16
+    }
+
+    fn component_to_gamma(c: u16) -> u8 {
+        let linear_float = (c as f32)/65535.0;
+        let gamma_float = linear_float.powf(1.0/GAMMA);
+        (gamma_float*255.0).floor() as u8
+    }
+
+    pub fn to_gamma(&self) -> Color {
         Color {
-            r: gamma_interpolate(self.r, other.r, position),
-            g: gamma_interpolate(self.g, other.g, position),
-            b: gamma_interpolate(self.b, other.b, position)
+            r: LinearColor::component_to_gamma(self.r),
+            g: LinearColor::component_to_gamma(self.g),
+            b: LinearColor::component_to_gamma(self.b)
+        }
+    }
+
+    pub fn from_gamma(c: Color) -> LinearColor {
+        LinearColor {
+            r: LinearColor::component_to_linear(c.r),
+            g: LinearColor::component_to_linear(c.g),
+            b: LinearColor::component_to_linear(c.b)
+        }
+    }
+
+    pub fn lerp(&self, other: LinearColor, position: f32) -> LinearColor {
+        assert!(position >= 0.0 && position <= 1.0);
+        LinearColor {
+            r: (self.r as f32).lerp(other.r as f32, position).round() as u16,
+            g: (self.g as f32).lerp(other.g as f32, position).round() as u16,
+            b: (self.b as f32).lerp(other.b as f32, position).round() as u16
         }
     }
 }
@@ -154,6 +204,19 @@ mod tests {
         assert_eq!(a, a.lerp(c, 0.0));
         assert_eq!(b, a.lerp(c, 0.5));
         assert_eq!(c, a.lerp(c, 1.0));
+    }
+
+    #[test]
+    fn test_color_linearcolor() {
+        // Test each channel
+        let c = Color::new(85, 170, 255);
+        assert_eq!(c, c.to_linear().to_gamma());
+
+        // Test all values for a single channel, make sure we can round-trip to linear and back
+        for i in 0..256 {
+            let c = Color::new(i as u8, 0, 0);
+            assert_eq!(c, c.to_linear().to_gamma());
+        }
     }
 
     #[test]
