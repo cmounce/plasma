@@ -9,32 +9,6 @@ pub const NUM_COLOR_GENES: usize = 8;
 pub const CONTROL_POINT_GENE_SIZE: usize = 5;
 
 impl Color {
-    fn sq_dist(&self, other: Color) -> u32 {
-        // We intentionally do the distance calculation on gamma-encoded RGB values,
-        // as opposed to doing it on linear values. Doing the calculation on gamma-encoded
-        // values better matches perceived color distance. As a bonus, it's also faster.
-        fn partial(x: u8, y: u8) -> u32 {
-            let delta = (x as i32) - (y as i32);
-            (delta*delta) as u32
-        }
-        partial(self.r, other.r) + partial(self.g, other.g) + partial(self.b, other.b)
-    }
-
-    fn avg(colors: &[Color]) -> Color {
-        assert!(colors.len() > 0);
-        let linear_colors = colors.iter().map(|c| c.to_linear());
-        let linear_totals = linear_colors.fold([0.0, 0.0, 0.0], |acc, c| {
-            [acc[0] + c.r as f32, acc[1] + c.g as f32, acc[2] + c.b as f32]
-        });
-        let avg_component = |total: f32| (total/(colors.len() as f32)).round() as u16;
-        let linear_color = LinearColor {
-            r: avg_component(linear_totals[0]),
-            g: avg_component(linear_totals[1]),
-            b: avg_component(linear_totals[2])
-        };
-        linear_color.to_gamma()
-    }
-
     fn from_hsl(hue: f32, saturation: f32, lightness: f32) -> Color {
         let h = hue.wrap();
         let s = saturation.clamp(0.0, 1.0);
@@ -106,6 +80,29 @@ impl Color {
     }
 }
 
+impl LinearColor {
+    fn sq_dist(&self, other: LinearColor) -> u64 {
+        fn partial(x: u16, y: u16) -> u64 {
+            let delta = (x as i64) - (y as i64);
+            (delta*delta) as u64
+        }
+        partial(self.r, other.r) + partial(self.g, other.g) + partial(self.b, other.b)
+    }
+
+    fn avg(colors: &[LinearColor]) -> LinearColor {
+        assert!(colors.len() > 0);
+        let totals = colors.iter().fold([0.0, 0.0, 0.0], |acc, c| {
+            [acc[0] + c.r as f32, acc[1] + c.g as f32, acc[2] + c.b as f32]
+        });
+        let avg_component = |total: f32| (total/(colors.len() as f32)).round() as u16;
+        LinearColor {
+            r: avg_component(totals[0]),
+            g: avg_component(totals[1]),
+            b: avg_component(totals[2])
+        }
+    }
+}
+
 impl ControlPoint {
     fn from_gene(gene: &Gene) -> Option<ControlPoint> {
         assert!(gene.data.len() == CONTROL_POINT_GENE_SIZE);
@@ -132,36 +129,40 @@ pub struct ColorMapper {
 
 impl ColorMapper {
     pub fn new(chromosome: &Chromosome, settings: &RenderingSettings) -> ColorMapper {
-        // Build gradient, palette
+        // Build gradient
         let control_points = chromosome.genes.iter().
             filter_map(|g| ControlPoint::from_gene(&g)).collect();
         let gradient = Gradient::new(control_points);
-        let palette = ColorMapper::calculate_palette(
+
+        // Compute optimal palette for gradient
+        let linear_palette = ColorMapper::calculate_palette(
             &gradient,
             settings.palette_size.unwrap_or(LOOKUP_TABLE_SIZE)
         );
 
-        // Build lookup table
+        // Build gradient-position -> palette-index lookup table
         let mut lookup_table = [0; LOOKUP_TABLE_SIZE];
         for i in 0..LOOKUP_TABLE_SIZE {
              let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
-             let color = gradient.get(position);
-             lookup_table[i] = ColorMapper::quantize(color, &palette[..]);
+             let color = gradient.get(position).to_linear();
+             lookup_table[i] = ColorMapper::quantize(color, &linear_palette[..]);
         }
 
+        // Gamma-encode palette and return finished ColorMapper
         ColorMapper {
-            palette: palette,
+            palette: linear_palette.iter().map(|lc| lc.to_gamma()).collect(),
             lookup_table: lookup_table
         }
     }
 
-    fn quantize(color: Color, palette: &[Color]) -> u16 {
-        palette.iter().enumerate().min_by_key(|index_color|
-            color.sq_dist(*index_color.1)
+    // Given a palette and an arbitrary color, returns the index of the nearest palette color
+    fn quantize(color: LinearColor, palette: &[LinearColor]) -> u16 {
+        palette.iter().enumerate().min_by_key(|&(_, palette_color)|
+            color.sq_dist(*palette_color)
         ).unwrap().0 as u16
     }
 
-    fn calculate_palette(gradient: &Gradient, palette_size: usize) -> Vec<Color> {
+    fn calculate_palette(gradient: &Gradient, palette_size: usize) -> Vec<LinearColor> {
         assert!(palette_size >= 2);
         assert!(palette_size <= u16::MAX as usize);
 
@@ -171,14 +172,14 @@ impl ColorMapper {
         let mut samples = Vec::with_capacity(num_samples);
         for i in 0..num_samples {
             let position = sample_step*i as f32;
-            samples.push(gradient.get(position));
+            samples.push(gradient.get(position).to_linear());
         }
 
         // Create an initial palette by sampling the gradient
         let mut palette = Vec::with_capacity(palette_size);
         let palette_step = 1.0/palette_size as f32;
         for i in 0..palette_size {
-            palette.push(gradient.get(palette_step*i as f32));
+            palette.push(gradient.get(palette_step*i as f32).to_linear());
         }
 
         // Do k-means clustering
@@ -201,7 +202,7 @@ impl ColorMapper {
             }
             for i in 0..palette_size {
                 if palette_representees[i].len() > 0 {
-                    let average = Color::avg(&palette_representees[i][..]);
+                    let average = LinearColor::avg(&palette_representees[i][..]);
                     if palette[i] != average {
                         palette[i] = average;
                         palette_updated = true;
@@ -227,24 +228,24 @@ impl ColorMapper {
 #[cfg(test)]
 mod tests {
     use genetics::Gene;
-    use gradient::Color;
+    use gradient::{Color, LinearColor};
     use gradient::ControlPoint;
 
     #[test]
-    fn test_color_sq_dist() {
-        let black = Color::new(0, 0, 0);
-        let white = Color::new(255, 255, 255);
+    fn test_linear_color_sq_dist() {
+        let black = Color::new(0, 0, 0).to_linear();
+        let white = Color::new(255, 255, 255).to_linear();
         let gray = black.lerp(white, 0.5);
         assert_eq!(black.sq_dist(black), 0);
         assert!(black.sq_dist(gray) < black.sq_dist(white));
     }
 
     #[test]
-    fn test_color_avg() {
-        let black = Color::new(0, 0, 0);
-        let white = Color::new(255, 255, 255);
-        assert_eq!(Color::avg(&[black, white]), black.lerp(white, 0.5));
-        assert_eq!(Color::avg(&[black, black, white]), black.lerp(white, 1.0/3.0));
+    fn test_linear_color_avg() {
+        let black = Color::new(0, 0, 0).to_linear();
+        let white = Color::new(255, 255, 255).to_linear();
+        assert_eq!(LinearColor::avg(&[black, white]), black.lerp(white, 0.5));
+        assert_eq!(LinearColor::avg(&[black, black, white]), black.lerp(white, 1.0/3.0));
     }
 
     #[test]
