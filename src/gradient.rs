@@ -18,7 +18,7 @@ pub struct LinearColor {
 
 #[derive(Copy,Clone,Debug)]
 pub struct ControlPoint {
-    pub color: Color,
+    pub color: LinearColor,
     pub position: f32
 }
 
@@ -39,11 +39,7 @@ pub struct GradientIterator<'a> {
 
 impl Color {
     pub fn new(r: u8, g: u8, b: u8) -> Color {
-        Color { r: r, g: g, b: b}
-    }
-
-    pub fn lerp(&self, other: Color, position: f32) -> Color {
-        self.to_linear().lerp(other.to_linear(), position).to_gamma()
+        Color { r: r, g: g, b: b }
     }
 
     pub fn to_linear(&self) -> LinearColor {
@@ -52,6 +48,31 @@ impl Color {
 }
 
 impl LinearColor {
+    pub fn new(r: u16, g: u16, b: u16) -> LinearColor {
+        LinearColor { r: r, g: g, b: b }
+    }
+
+    // Create a LinearColor with gamma-encoded u8 values
+    pub fn new_gamma(r: u8, g: u8, b: u8) -> LinearColor {
+        Color::new(r, g, b).to_linear()
+    }
+
+    // Create a LinearColor with floats in the range [0.0, 1.0]
+    pub fn new_f32(r: f32, g: f32, b: f32) -> LinearColor {
+        /*
+         * Note that to_component() uses (f*MAX+1).floor() instead of (f*MAX).round().
+         *
+         * For each u16 output, there is a range of f32 inputs that will produce that
+         * output. Using floor() ensures that these input ranges are all the same size.
+         *
+         * Contrast with what would happen if we used round(). Inputs in the range [0.0, 0.5)
+         * would map to 0, whereas inputs in the twice-as-large [0.5, 1.5) would map to 1.
+         * Similarly, twice as many inputs would produce 65534 compared to 65535.
+         */
+        let to_component = |f: f32| (f*65536.0).floor().clamp(0.0, 65535.0) as u16;
+        LinearColor::new(to_component(r), to_component(g), to_component(b))
+    }
+
     fn component_to_linear(c: u8) -> u16 {
         let gamma_float = (c as f32)/255.0;
         let linear_float = gamma_float.powf(GAMMA);
@@ -95,23 +116,23 @@ impl LinearColor {
 
     pub fn lerp(&self, other: LinearColor, position: f32) -> LinearColor {
         assert!(position >= 0.0 && position <= 1.0);
-        LinearColor {
-            r: (self.r as f32).lerp(other.r as f32, position).round() as u16,
-            g: (self.g as f32).lerp(other.g as f32, position).round() as u16,
-            b: (self.b as f32).lerp(other.b as f32, position).round() as u16
-        }
+        LinearColor::new_f32(
+            (self.r as f32).lerp(other.r as f32, position)/65535.0,
+            (self.g as f32).lerp(other.g as f32, position)/65535.0,
+            (self.b as f32).lerp(other.b as f32, position)/65535.0
+        )
     }
 }
 
 impl ControlPoint {
     fn new(r: u8, g: u8, b: u8, position: f32) -> ControlPoint {
         ControlPoint {
-            color: Color::new(r, g, b),
+            color: Color::new(r, g, b).to_linear(),
             position: position.wrap()
         }
     }
 
-    fn lerp(&self, other: ControlPoint, position: f32) -> Color {
+    fn lerp(&self, other: ControlPoint, position: f32) -> LinearColor {
         // Calculate distance from self to other, moving in the positive direction
         let distance = (other.position - self.position).wrap();
         assert!(distance > 0.0);
@@ -137,7 +158,7 @@ impl Subgradient {
         }
     }
 
-    pub fn color_at(&self, position: f32) -> Color {
+    pub fn color_at(&self, position: f32) -> LinearColor {
         assert!(self.contains(position));
         self.point1.lerp(self.point2, position)
     }
@@ -161,7 +182,7 @@ impl Gradient {
         }
     }
 
-    pub fn get(&self, position: f32) -> Color {
+    pub fn get(&self, position: f32) -> LinearColor {
         let pos = position.wrap();
         let mut iter = self.iter();
         let mut subgradient = iter.next().unwrap();
@@ -192,16 +213,40 @@ impl<'a> Iterator for GradientIterator<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::Color;
-    use super::ControlPoint;
-    use super::Subgradient;
+    use super::{Color, ControlPoint, LinearColor, Subgradient};
 
     #[test]
-    fn test_color_lerp() {
-        let a = Color::new(255, 0, 0);
-        let b = Color::new(186, 186, 0); // gamma-correct midpoint for gamma = 2.2
-        let c = Color::new(0, 255, 0);
-        assert_eq!(a, a.lerp(c, 0.0));
+    fn test_linear_color_new_f32() {
+        let black =         LinearColor::new(0, 0, 0);
+        let almost_black =  LinearColor::new(1, 0, 0);
+        let almost_red =    LinearColor::new(65534, 0, 0);
+        let red =           LinearColor::new(65535, 0, 0);
+
+        // There are 65536 possible u16 values.
+        // Divide the range [0.0, 1.0] into 65536 ranges of equal size.
+        let range_size = 1.0/65536.0;
+
+        // Check rounding behavior at bottom
+        let new_f32_r = |r: f32| LinearColor::new_f32(r, 0.0, 0.0);
+        let a_little_bit = range_size/100.0;
+        assert_eq!(black,           new_f32_r(0.0));
+        assert_eq!(black,           new_f32_r(range_size - a_little_bit));
+        assert_eq!(almost_black,    new_f32_r(range_size));
+        assert_eq!(almost_black,    new_f32_r(2.0*range_size - a_little_bit));
+
+        // Check rounding behavior at top
+        assert_eq!(almost_red,  new_f32_r(1.0 - 2.0*range_size + a_little_bit));
+        assert_eq!(almost_red,  new_f32_r(1.0 - range_size - a_little_bit));
+        assert_eq!(red,         new_f32_r(1.0 - range_size + a_little_bit));
+        assert_eq!(red,         new_f32_r(1.0));
+    }
+
+    #[test]
+    fn test_linear_color_lerp() {
+        let a = LinearColor::new(65535, 0, 0);
+        let b = LinearColor::new(32768, 32768, 0);
+        let c = LinearColor::new(0, 65535, 0);
+        assert_eq!(a, a.lerp(a, 0.0));
         assert_eq!(b, a.lerp(c, 0.5));
         assert_eq!(c, a.lerp(c, 1.0));
     }
@@ -211,6 +256,12 @@ mod tests {
         // Test each channel
         let c = Color::new(85, 170, 255);
         assert_eq!(c, c.to_linear().to_gamma());
+
+        // Test gamma calculation for 50% gray
+        assert_eq!(
+            LinearColor {r: 32768, g: 32768, b: 32768}.to_gamma(),
+            Color::new(186, 186, 186)
+        );
 
         // Test all values for a single channel, make sure we can round-trip to linear and back
         for i in 0..256 {
@@ -235,9 +286,9 @@ mod tests {
           * +----+--------+-----+
           * 0   0.2      0.7    1
           */
-        let color_a = Color::new(60, 0, 0);
-        let color_b = Color::new(0, 60, 0);
-        let color_c = Color::new(0, 0, 60);
+        let color_a = LinearColor::new_gamma(60, 0, 0);
+        let color_b = LinearColor::new_gamma(0, 60, 0);
+        let color_c = LinearColor::new_gamma(0, 0, 60);
         let a = ControlPoint { color: color_a, position: 0.0 };
         let b = ControlPoint { color: color_b, position: 0.2 };
         let c = ControlPoint { color: color_c, position: 0.7 };
@@ -293,8 +344,8 @@ mod tests {
 
     #[test]
     fn test_subgradient_color_at() {
-        let c1 = Color::new(60, 0, 0);
-        let c2 = Color::new(0, 60, 0);
+        let c1 = LinearColor::new_gamma(60, 0, 0);
+        let c2 = LinearColor::new_gamma(0, 60, 0);
         let s = Subgradient::new(
             ControlPoint { color: c1, position: 0.8 },
             ControlPoint { color: c2, position: 0.3 }
