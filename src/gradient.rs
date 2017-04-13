@@ -52,11 +52,6 @@ impl LinearColor {
         LinearColor { r: r, g: g, b: b }
     }
 
-    // Create a LinearColor with gamma-encoded u8 values
-    pub fn new_gamma(r: u8, g: u8, b: u8) -> LinearColor {
-        Color::new(r, g, b).to_linear()
-    }
-
     // Create a LinearColor with floats in the range [0.0, 1.0]
     pub fn new_f32(r: f32, g: f32, b: f32) -> LinearColor {
         /*
@@ -158,7 +153,7 @@ impl Subgradient {
         }
     }
 
-    pub fn color_at(&self, position: f32) -> LinearColor {
+    pub fn get_color(&self, position: f32) -> LinearColor {
         assert!(self.contains(position));
         self.point1.lerp(self.point2, position)
     }
@@ -182,14 +177,14 @@ impl Gradient {
         }
     }
 
-    pub fn get(&self, position: f32) -> LinearColor {
+    pub fn get_color(&self, position: f32) -> LinearColor {
         let pos = position.wrap();
         let mut iter = self.iter();
         let mut subgradient = iter.next().unwrap();
         while !subgradient.contains(pos) {
             subgradient = iter.next().unwrap();
         }
-        subgradient.color_at(pos)
+        subgradient.get_color(pos)
     }
 
     pub fn iter(&self) -> GradientIterator {
@@ -286,9 +281,9 @@ mod tests {
           * +----+--------+-----+
           * 0   0.2      0.7    1
           */
-        let color_a = LinearColor::new_gamma(60, 0, 0);
-        let color_b = LinearColor::new_gamma(0, 60, 0);
-        let color_c = LinearColor::new_gamma(0, 0, 60);
+        let color_a = LinearColor::new(60, 0, 0);
+        let color_b = LinearColor::new(0, 60, 0);
+        let color_c = LinearColor::new(0, 0, 60);
         let a = ControlPoint { color: color_a, position: 0.0 };
         let b = ControlPoint { color: color_b, position: 0.2 };
         let c = ControlPoint { color: color_c, position: 0.7 };
@@ -343,13 +338,13 @@ mod tests {
     }
 
     #[test]
-    fn test_subgradient_color_at() {
-        let c1 = LinearColor::new_gamma(60, 0, 0);
-        let c2 = LinearColor::new_gamma(0, 60, 0);
+    fn test_subgradient_get_color() {
+        let c1 = LinearColor::new(60, 0, 0);
+        let c2 = LinearColor::new(0, 60, 0);
         let s = Subgradient::new(
             ControlPoint { color: c1, position: 0.8 },
             ControlPoint { color: c2, position: 0.3 }
         );
-        assert_eq!(s.color_at(0.1), c1.lerp(c2, 3.0/5.0));
+        assert_eq!(s.get_color(0.1), c1.lerp(c2, 3.0/5.0));
     }
 }

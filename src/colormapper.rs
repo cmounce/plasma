@@ -132,7 +132,7 @@ impl ColorMapper {
         let mut lookup_table = [0; LOOKUP_TABLE_SIZE];
         for i in 0..LOOKUP_TABLE_SIZE {
              let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
-             let color = gradient.get(position);
+             let color = gradient.get_color(position);
              lookup_table[i] = ColorMapper::quantize(color, &linear_palette[..]);
         }
 
@@ -160,14 +160,14 @@ impl ColorMapper {
         let mut samples = Vec::with_capacity(num_samples);
         for i in 0..num_samples {
             let position = sample_step*i as f32;
-            samples.push(gradient.get(position));
+            samples.push(gradient.get_color(position));
         }
 
         // Create an initial palette by sampling the gradient
         let mut palette = Vec::with_capacity(palette_size);
         let palette_step = 1.0/palette_size as f32;
         for i in 0..palette_size {
-            palette.push(gradient.get(palette_step*i as f32));
+            palette.push(gradient.get_color(palette_step*i as f32));
         }
 
         // Do k-means clustering
@@ -216,13 +216,18 @@ impl ColorMapper {
 #[cfg(test)]
 mod tests {
     use genetics::Gene;
-    use gradient::LinearColor as LC;
+    use gradient::{Color, LinearColor as LC};
     use gradient::ControlPoint;
+
+    // Create a LinearColor with gamma-encoded u8 values
+    fn new_gamma(r: u8, g: u8, b: u8) -> LC {
+        Color::new(r, g, b).to_linear()
+    }
 
     #[test]
     fn test_linear_color_sq_dist() {
-        let black = LC::new_gamma(0, 0, 0);
-        let white = LC::new_gamma(255, 255, 255);
+        let black = new_gamma(0, 0, 0);
+        let white = new_gamma(255, 255, 255);
         let gray = black.lerp(white, 0.5);
         assert_eq!(black.sq_dist(black), 0);
         assert!(black.sq_dist(gray) < black.sq_dist(white));
@@ -230,8 +235,8 @@ mod tests {
 
     #[test]
     fn test_linear_color_avg() {
-        let black = LC::new_gamma(0, 0, 0);
-        let white = LC::new_gamma(255, 255, 255);
+        let black = new_gamma(0, 0, 0);
+        let white = new_gamma(255, 255, 255);
         assert_eq!(LC::avg(&[black, white]), black.lerp(white, 0.5));
         assert_eq!(LC::avg(&[black, black, white]), black.lerp(white, 1.0/3.0));
     }
@@ -245,13 +250,13 @@ mod tests {
          */
 
         // Test saturated primaries and secondaries
-        assert_eq!(LC::from_hsl(0.0,     1.0, 0.5), LC::new_gamma(255, 0,   0));
-        assert_eq!(LC::from_hsl(1.0/6.0, 1.0, 0.5), LC::new_gamma(255, 255, 0));
-        assert_eq!(LC::from_hsl(2.0/6.0, 1.0, 0.5), LC::new_gamma(0,   255, 0));
-        assert_eq!(LC::from_hsl(3.0/6.0, 1.0, 0.5), LC::new_gamma(0,   255, 255));
-        assert_eq!(LC::from_hsl(4.0/6.0, 1.0, 0.5), LC::new_gamma(0,   0,   255));
-        assert_eq!(LC::from_hsl(5.0/6.0, 1.0, 0.5), LC::new_gamma(255, 0,   255));
-        assert_eq!(LC::from_hsl(1.0,     1.0, 0.5), LC::new_gamma(255, 0,   0));
+        assert_eq!(LC::from_hsl(0.0,     1.0, 0.5), new_gamma(255, 0,   0));
+        assert_eq!(LC::from_hsl(1.0/6.0, 1.0, 0.5), new_gamma(255, 255, 0));
+        assert_eq!(LC::from_hsl(2.0/6.0, 1.0, 0.5), new_gamma(0,   255, 0));
+        assert_eq!(LC::from_hsl(3.0/6.0, 1.0, 0.5), new_gamma(0,   255, 255));
+        assert_eq!(LC::from_hsl(4.0/6.0, 1.0, 0.5), new_gamma(0,   0,   255));
+        assert_eq!(LC::from_hsl(5.0/6.0, 1.0, 0.5), new_gamma(255, 0,   255));
+        assert_eq!(LC::from_hsl(1.0,     1.0, 0.5), new_gamma(255, 0,   0));
 
         // Test in-between colors
         let num_iter = 3*6;
@@ -265,8 +270,8 @@ mod tests {
         }
 
         // Test black, gray (gamma-correct), white
-        let black = LC::new_gamma(0, 0, 0);
-        let white = LC::new_gamma(255, 255, 255);
+        let black = new_gamma(0, 0, 0);
+        let white = new_gamma(255, 255, 255);
         let gray = black.lerp(white, 0.5);
         assert_eq!(LC::from_hsl(0.0, 0.0, 0.0), black);
         assert_eq!(LC::from_hsl(0.0, 1.0, 0.0), black);
@@ -275,7 +280,7 @@ mod tests {
         assert_eq!(LC::from_hsl(0.0, 1.0, 1.0), white);
 
         // Test saturation
-        let red = LC::new_gamma(255, 0, 0);
+        let red = new_gamma(255, 0, 0);
         assert_eq!(LC::from_hsl(0.0, 0.25, 0.5), gray.lerp(red, 0.25));
         assert_eq!(LC::from_hsl(0.0, 0.5,  0.5), gray.lerp(red, 0.5));
         assert_eq!(LC::from_hsl(0.0, 0.75, 0.5), gray.lerp(red, 0.75));
