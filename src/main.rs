@@ -173,6 +173,7 @@ fn build_plasma_settings(matches: Matches) -> Result<PlasmaSettings, String> {
     }
     if matches.opt_present("p") {
         let palette_size_str = matches.opt_str("p").unwrap();
+        // TODO: Add support for 256 colors
         rendering_settings.palette_size = match palette_size_str.parse() {
             Ok(n) if 2 <= n && n <= 255 => Some(n),
             _ => return Err(format!("Not an integer from 2 to 255: {}", palette_size_str))
