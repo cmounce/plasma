@@ -64,7 +64,7 @@ impl PlasmaRenderer {
 
     fn calculate_color(&self, x: f32, y: f32) -> Color {
         let value = self.formulas.get_value(x, y);
-        self.color_mapper.convert(value)
+        self.color_mapper.get_nearest_color(value)
     }
 
     pub fn get_palette(&self) -> Vec<Color> {

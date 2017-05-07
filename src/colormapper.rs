@@ -76,18 +76,32 @@ impl LinearColor {
         }
         partial(self.r, other.r) + partial(self.g, other.g) + partial(self.b, other.b)
     }
+}
 
-    fn avg(colors: &[LinearColor]) -> LinearColor {
-        assert!(colors.len() > 0);
-        let totals = colors.iter().fold([0.0, 0.0, 0.0], |acc, c| {
+trait PaletteUtils {
+    fn average(&self) -> LinearColor;
+    fn get_nearest_palette_index(&self, color: LinearColor) -> usize;
+}
+
+impl PaletteUtils for [LinearColor] {
+    fn average(&self) -> LinearColor {
+        assert!(self.len() > 0);
+        let totals = self.iter().fold([0.0, 0.0, 0.0], |acc, c| {
             [acc[0] + c.r as f32, acc[1] + c.g as f32, acc[2] + c.b as f32]
         });
-        let avg_component = |total: f32| (total/(colors.len() as f32)).round() as u16;
+        let avg_component = |total: f32| (total/(self.len() as f32)).round() as u16;
         LinearColor {
             r: avg_component(totals[0]),
             g: avg_component(totals[1]),
             b: avg_component(totals[2])
         }
+    }
+
+    // Given a palette and an arbitrary color, returns the index of the nearest palette color
+    fn get_nearest_palette_index(&self, color: LinearColor) -> usize {
+        self.iter().enumerate().min_by_key(|&(_, palette_color)|
+            color.sq_dist(*palette_color)
+        ).unwrap().0
     }
 }
 
@@ -133,7 +147,7 @@ impl ColorMapper {
         for i in 0..LOOKUP_TABLE_SIZE {
              let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
              let color = gradient.get_color(position);
-             lookup_table[i] = ColorMapper::quantize(color, &linear_palette[..]);
+             lookup_table[i] = linear_palette.get_nearest_palette_index(color) as u16;
         }
 
         // Gamma-encode palette and return finished ColorMapper
@@ -141,13 +155,6 @@ impl ColorMapper {
             palette: linear_palette.iter().map(|lc| lc.to_gamma()).collect(),
             lookup_table: lookup_table
         }
-    }
-
-    // Given a palette and an arbitrary color, returns the index of the nearest palette color
-    fn quantize(color: LinearColor, palette: &[LinearColor]) -> u16 {
-        palette.iter().enumerate().min_by_key(|&(_, palette_color)|
-            color.sq_dist(*palette_color)
-        ).unwrap().0 as u16
     }
 
     fn calculate_palette(gradient: &Gradient, palette_size: usize) -> Vec<LinearColor> {
@@ -178,7 +185,7 @@ impl ColorMapper {
         while palette_updated {
             // Re-quantize our samples using the latest palette
             for i in 0..num_samples {
-                quantized_samples[i] = ColorMapper::quantize(samples[i], &palette[..]);
+                quantized_samples[i] = palette.get_nearest_palette_index(samples[i]) as u16;
             }
 
             // Rebuild our palette
@@ -190,7 +197,7 @@ impl ColorMapper {
             }
             for i in 0..palette_size {
                 if palette_representees[i].len() > 0 {
-                    let average = LinearColor::avg(&palette_representees[i][..]);
+                    let average = palette_representees[i].average();
                     if palette[i] != average {
                         palette[i] = average;
                         palette_updated = true;
@@ -202,7 +209,12 @@ impl ColorMapper {
         palette
     }
 
-    pub fn convert(&self, value: f32) -> Color {
+    /*
+     * TODO: Add a corresponding get_dithered_color(position, x, y)
+     * We can use Yliluoma's algorithm. 4 color max, 8x8 Bayer matrix
+     * We'll precompute dither information (indexes of base colors + their proportions)
+     */
+    pub fn get_nearest_color(&self, value: f32) -> Color {
         let index = (value.wrap()*(LOOKUP_TABLE_SIZE as f32)).floor() as usize % LOOKUP_TABLE_SIZE;
         let palette_index = self.lookup_table[index];
         self.palette[palette_index as usize]
@@ -218,6 +230,7 @@ mod tests {
     use genetics::Gene;
     use gradient::{Color, LinearColor as LC};
     use gradient::ControlPoint;
+    use super::PaletteUtils;
 
     // Create a LinearColor with gamma-encoded u8 values
     fn new_gamma(r: u8, g: u8, b: u8) -> LC {
@@ -234,11 +247,11 @@ mod tests {
     }
 
     #[test]
-    fn test_linear_color_avg() {
+    fn test_palette_utils_average() {
         let black = new_gamma(0, 0, 0);
         let white = new_gamma(255, 255, 255);
-        assert_eq!(LC::avg(&[black, white]), black.lerp(white, 0.5));
-        assert_eq!(LC::avg(&[black, black, white]), black.lerp(white, 1.0/3.0));
+        assert_eq!([black, white].average(), black.lerp(white, 0.5));
+        assert_eq!([black, black, white].average(), black.lerp(white, 1.0/3.0));
     }
 
     #[test]
