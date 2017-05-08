@@ -15,9 +15,9 @@ mod settings;
 
 use colormapper::{NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE};
 use formulas::{NUM_FORMULA_GENES, FORMULA_GENE_SIZE};
-use getopts::{Options, Matches};
+use getopts::{Matches, Options};
 use genetics::{Chromosome, Genome, Population};
-use settings::{GeneticSettings,RenderingSettings,OutputMode,OutputSettings,PlasmaSettings};
+use settings::{GeneticSettings, OutputMode, OutputSettings, PlasmaSettings, RenderingSettings};
 use std::cmp::max;
 use std::env;
 use std::io::Write;

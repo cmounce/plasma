@@ -2,7 +2,7 @@ use fastmath::FastMath;
 use genetics::{Chromosome, Gene};
 use gradient::{Color, ControlPoint, Gradient, LinearColor};
 use settings::RenderingSettings;
-use std::{f32,u16};
+use std::{f32, u16};
 
 const LOOKUP_TABLE_SIZE: usize = 512;
 pub const NUM_COLOR_GENES: usize = 8;
@@ -145,9 +145,9 @@ impl ColorMapper {
         // Build gradient-position -> palette-index lookup table
         let mut lookup_table = [0; LOOKUP_TABLE_SIZE];
         for i in 0..LOOKUP_TABLE_SIZE {
-             let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
-             let color = gradient.get_color(position);
-             lookup_table[i] = linear_palette.get_nearest_palette_index(color) as u16;
+            let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
+            let color = gradient.get_color(position);
+            lookup_table[i] = linear_palette.get_nearest_palette_index(color) as u16;
         }
 
         // Gamma-encode palette and return finished ColorMapper

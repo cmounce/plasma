@@ -441,8 +441,8 @@ mod tests {
 
         // Test with 1 genome
         let g = Genome {
-            color: Chromosome::rand(4,4),
-            pattern: Chromosome::rand(4,4)
+            color: Chromosome::rand(4, 4),
+            pattern: Chromosome::rand(4, 4)
         };
         p.add(g.clone());
         assert_eq!(p.get_pair().is_some(), true);

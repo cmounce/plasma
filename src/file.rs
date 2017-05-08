@@ -1,7 +1,7 @@
 use gif::{Encoder, Frame, SetParameter, Repeat};
 use gradient::Color;
 use renderer::{Image, PlasmaRenderer};
-use settings::{OutputMode,PlasmaSettings};
+use settings::{OutputMode, PlasmaSettings};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -41,7 +41,7 @@ pub fn output_gif(settings: PlasmaSettings) {
     // Encode the GIF again, but this time try to optimize it by using transparent pixels
     if palette.len() < 256 {
         // Add transparency to the frames
-        palette.insert(0, Color::new(0,0,0)); // Add transparent palette entry
+        palette.insert(0, Color::new(0, 0, 0)); // Add transparent palette entry
         for indexed_frame in indexed_frames.iter_mut() {
             for index in indexed_frame.iter_mut() {
                 *index += 1; // Adjust existing indexes to accommodate transparency

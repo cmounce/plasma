@@ -276,11 +276,11 @@ mod tests {
 
     #[test]
     fn test_control_point_lerp() {
-         /*
-          * a    b        c    (a)
-          * +----+--------+-----+
-          * 0   0.2      0.7    1
-          */
+        /*
+         * a    b        c    (a)
+         * +----+--------+-----+
+         * 0   0.2      0.7    1
+         */
         let color_a = LinearColor::new(60, 0, 0);
         let color_b = LinearColor::new(0, 60, 0);
         let color_c = LinearColor::new(0, 0, 60);

@@ -177,7 +177,7 @@ mod tests {
     use fastmath::FastMath;
     use genetics::Gene;
     use super::FORMULA_GENE_SIZE;
-    use super::{ByteFloat,Formula,WaveFormula,RotatingWaveFormula,CircularWaveFormula};
+    use super::{ByteFloat, Formula, CircularWaveFormula, RotatingWaveFormula, WaveFormula};
 
     #[test]
     fn test_bytefloat_float() {
@@ -200,7 +200,8 @@ mod tests {
     // - optimized is the Formula to test.
     // - reference is the reference implementation that maps (x, y, time) to a f32 value.
     fn test_formula<F: Formula, C>(formula: &mut F, reference: C)
-        where C : Fn(f32, f32, f32) -> f32 {
+        where C: Fn(f32, f32, f32) -> f32
+    {
         // Helper for loops below
         fn range(low: f32, high: f32, step: f32) -> Vec<f32> {
             assert!(low < high && step > 0.0);

@@ -53,7 +53,7 @@ pub fn run_interactive(settings: PlasmaSettings) {
 
     // Init screen to black via an initial 1x1 texture
     let mut texture = sdl_renderer.create_texture_streaming(PixelFormatEnum::RGB24, 1, 1).unwrap();
-    texture.update(None, &[0,0,0], 3).unwrap();
+    texture.update(None, &[0, 0, 0], 3).unwrap();
     sdl_renderer.copy(&texture, None, None);
     sdl_renderer.present();
 
@@ -115,34 +115,35 @@ pub fn run_interactive(settings: PlasmaSettings) {
         // Process events
         for event in events {
             match event {
-                Event::KeyDown { keycode: Some(keycode), ..} => {
+                Event::KeyDown { keycode: Some(keycode), .. } => {
                     match keycode {
                         // User approves current genome
                         Keycode::Equals | Keycode::Plus | Keycode::KpPlus => {
                             state.change_genome(true);
-                        },
+                        }
                         // User rejects current genome
                         Keycode::Minus | Keycode::Underscore | Keycode::KpMinus => {
                             state.change_genome(false);
-                        },
+                        }
                         // Export current genome
                         Keycode::E => {
                             println!("{}", state.current_genome.to_base64());
-                        },
+                        }
                         _ => ()
                     }
-                },
+                }
                 Event::Window {
                     win_event_id: WindowEventId::Resized,
                     data1: new_width,
-                    data2: new_height, ..
+                    data2: new_height,
+                    ..
                 } => {
                     state.width = new_width as u32;
                     state.height = new_height as u32;
                     sdl_renderer.copy(&state.current_texture, None, None);
                     sdl_renderer.present();
-                },
-                Event::Quit {..} => { return },
+                }
+                Event::Quit { .. } => return,
                 _ => ()
             }
         }
