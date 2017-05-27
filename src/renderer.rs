@@ -13,8 +13,9 @@ pub struct Image {
 }
 
 pub struct PlasmaRenderer {
-    formulas: PlasmaFormulas,
-    color_mapper: ColorMapper
+    dithering: bool,
+    color_mapper: ColorMapper,
+    formulas: PlasmaFormulas
 }
 
 impl Image {
@@ -39,8 +40,9 @@ impl PlasmaRenderer {
         let color_mapper = ColorMapper::new(&genome.color, &settings);
         let formulas = PlasmaFormulas::from_chromosome(&genome.pattern);
         PlasmaRenderer {
-            formulas: formulas,
-            color_mapper: color_mapper
+            color_mapper: color_mapper,
+            dithering: settings.dithering,
+            formulas: formulas
         }
     }
 
@@ -53,18 +55,18 @@ impl PlasmaRenderer {
         self.formulas.set_time(adj_time);
         for y in 0..image.height {
             for x in 0..image.width {
-                let color = self.calculate_color(
+                let value = self.formulas.get_value(
                     scale_mul*(x as f32) + scale_x_offset,
                     scale_mul*(y as f32) + scale_y_offset
                 );
+                let color = if self.dithering {
+                    self.color_mapper.get_dithered_color(value, x, y)
+                } else {
+                    self.color_mapper.get_nearest_color(value)
+                };
                 image.plot(x, y, color);
             }
         }
-    }
-
-    fn calculate_color(&self, x: f32, y: f32) -> Color {
-        let value = self.formulas.get_value(x, y);
-        self.color_mapper.get_nearest_color(value)
     }
 
     pub fn get_palette(&self) -> Vec<Color> {

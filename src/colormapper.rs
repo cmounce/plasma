@@ -2,11 +2,22 @@ use fastmath::FastMath;
 use genetics::{Chromosome, Gene};
 use gradient::{Color, ControlPoint, Gradient, LinearColor};
 use settings::RenderingSettings;
-use std::{f32, u16};
+use std::{cmp, f32, u16};
 
 const LOOKUP_TABLE_SIZE: usize = 512;
 pub const NUM_COLOR_GENES: usize = 8;
 pub const CONTROL_POINT_GENE_SIZE: usize = 5;
+
+const BAYER_MATRIX: [[u8; 8]; 8] = [
+    [ 0, 48, 12, 60,  3, 51, 15, 63],
+    [32, 16, 44, 28, 35, 19, 47, 31],
+    [ 8, 56,  4, 52, 11, 59,  7, 55],
+    [40, 24, 36, 20, 43, 27, 39, 23],
+    [ 2, 50, 14, 62,  1, 49, 13, 61],
+    [34, 18, 46, 30, 33, 17, 45, 29],
+    [10, 58,  6, 54,  9, 57,  5, 53],
+    [42, 26, 38, 22, 41, 25, 37, 21]
+];
 
 impl LinearColor {
     fn from_hsl(hue: f32, saturation: f32, lightness: f32) -> LinearColor {
@@ -81,6 +92,7 @@ impl LinearColor {
 trait PaletteUtils {
     fn average(&self) -> LinearColor;
     fn get_nearest_palette_index(&self, color: LinearColor) -> usize;
+    fn get_dither_info(&self, color: LinearColor) -> DitherInfo;
 }
 
 impl PaletteUtils for [LinearColor] {
@@ -102,6 +114,98 @@ impl PaletteUtils for [LinearColor] {
         self.iter().enumerate().min_by_key(|&(_, palette_color)|
             color.sq_dist(*palette_color)
         ).unwrap().0
+    }
+
+    // Given an arbitrary color, returns dithering info to approximate that color
+    fn get_dither_info(&self, color: LinearColor) -> DitherInfo {
+        // Figure out which colors should be mixed together to make the target color.
+        // This is based off of Yliluoma's work: http://bisqwit.iki.fi/story/howto/dither/jy/
+        let max_colors = 4;
+        let max_new_color_iters = 16;
+        let mut subpalette = Vec::with_capacity(max_colors);
+        let mut palette_indexes = Vec::with_capacity(max_colors);
+        let mut counts = Vec::with_capacity(max_colors);
+        let mut errors: [i32; 3] = [0, 0, 0];
+        for i in 0..64 {
+            // Calculate target color = (original color - accumulated error)
+            let mut target = color;
+            let sub_error = |component, error| {
+                // We can't use saturating_sub() here, because we're mixing i32 and u16
+                cmp::min(cmp::max(0, component as i32 - error), u16::MAX as i32) as u16
+            };
+            target.r = sub_error(target.r, errors[0]);
+            target.g = sub_error(target.g, errors[1]);
+            target.b = sub_error(target.b, errors[2]);
+
+            // Find the nearest color to the target color
+            let allow_new_colors = i < max_new_color_iters && subpalette.len() < max_colors;
+            let (nearest_palette_index, nearest_subpalette_index) = if allow_new_colors {
+                // Search the whole palette
+                let palette_index = self.get_nearest_palette_index(target);
+                let subpalette_index = palette_indexes.iter().position(|x| *x == palette_index);
+                (palette_index, subpalette_index)
+            } else {
+                // Search just the subpalette
+                let subpalette_index = subpalette.get_nearest_palette_index(target);
+                (palette_indexes[subpalette_index], Some(subpalette_index))
+            };
+
+            // Process the color we found
+            if let Some(subpalette_index) = nearest_subpalette_index {
+                // We've already seen this color, so just increment the count
+                counts[subpalette_index] += 1;
+            } else {
+                // We've found a new color, so add it to our data structures
+                subpalette.push(self[nearest_palette_index]);
+                palette_indexes.push(nearest_palette_index);
+                counts.push(1);
+            }
+
+            // Update our accumulated error
+            let last_color = self[nearest_palette_index];
+            errors[0] += last_color.r as i32 - color.r as i32;
+            errors[1] += last_color.g as i32 - color.g as i32;
+            errors[2] += last_color.b as i32 - color.b as i32;
+        }
+
+        // Assemble data into a DitherInfo struct.
+        let mut retval = DitherInfo {
+            palette_indexes: [0, 0, 0, 0],
+            palette_proportions: [0, 0, 0, 0]
+        };
+        let mut indexes_counts: Vec<_> = palette_indexes.iter().zip(counts.iter()).collect();
+        /*
+         * Sorting the colors improves the consistency of dithered output.
+         * Imagine dithering a black->white gradient with a palette of black and white: if we
+         * didn't sort the colors, black and white would switch places at the halfway point,
+         * which would create a visible seam in the dithered pattern.
+         */
+        indexes_counts.sort();
+        for (i, &(&palette_index, &count)) in indexes_counts.iter().enumerate() {
+            retval.palette_indexes[i] = palette_index as u16;
+            retval.palette_proportions[i] = count as u8;
+        }
+        retval
+    }
+}
+
+// Precomputed info for how to dither a specific color
+#[derive(Clone, Copy)]
+struct DitherInfo {
+    palette_indexes: [u16; 4],      // When dithering, mix these colors (up to 4)
+    palette_proportions: [u8; 4]    // in these proportions (total of 64)
+}
+
+impl DitherInfo {
+    fn get_palette_index(&self, x: usize, y: usize) -> usize {
+        let bayer_value = BAYER_MATRIX[y % 8][x % 8];
+        let mut cumulative_proportion = self.palette_proportions[0];
+        let mut dither_index = 0;
+        while cumulative_proportion <= bayer_value {
+            dither_index += 1;
+            cumulative_proportion += self.palette_proportions[dither_index];
+        }
+        self.palette_indexes[dither_index] as usize
     }
 }
 
@@ -126,7 +230,8 @@ impl ControlPoint {
 
 pub struct ColorMapper {
     palette: Vec<Color>,
-    lookup_table: [u16; LOOKUP_TABLE_SIZE]
+    lookup_table_nearest: Option<[u16; LOOKUP_TABLE_SIZE]>,
+    lookup_table_dithered: Option<[DitherInfo; LOOKUP_TABLE_SIZE]>
 }
 
 impl ColorMapper {
@@ -142,18 +247,37 @@ impl ColorMapper {
             settings.palette_size.unwrap_or(LOOKUP_TABLE_SIZE)
         );
 
-        // Build gradient-position -> palette-index lookup table
-        let mut lookup_table = [0; LOOKUP_TABLE_SIZE];
-        for i in 0..LOOKUP_TABLE_SIZE {
+        // Build lookup tables
+        let mut lookup_table_nearest = None;
+        let mut lookup_table_dithered = None;
+        let lookup_table_colors = (0..LOOKUP_TABLE_SIZE).map(|i| {
             let position = (i as f32)/(LOOKUP_TABLE_SIZE as f32);
-            let color = gradient.get_color(position);
-            lookup_table[i] = linear_palette.get_nearest_palette_index(color) as u16;
+            gradient.get_color(position)
+        });
+        if settings.dithering {
+            // Build gradient-position -> precomputed-dithering lookup table
+            let mut lookup_table = [
+                DitherInfo { palette_indexes: [0, 0, 0, 0], palette_proportions: [0, 0, 0, 0]};
+                LOOKUP_TABLE_SIZE
+            ];
+            for (i, color) in lookup_table_colors.enumerate() {
+                lookup_table[i] = linear_palette.get_dither_info(color);
+            }
+            lookup_table_dithered = Some(lookup_table);
+        } else {
+            // Build gradient-position -> nearest-palette-index lookup table
+            let mut lookup_table = [0; LOOKUP_TABLE_SIZE];
+            for (i, color) in lookup_table_colors.enumerate() {
+                lookup_table[i] = linear_palette.get_nearest_palette_index(color) as u16;
+            }
+            lookup_table_nearest = Some(lookup_table);
         }
 
         // Gamma-encode palette and return finished ColorMapper
         ColorMapper {
             palette: linear_palette.iter().map(|lc| lc.to_gamma()).collect(),
-            lookup_table: lookup_table
+            lookup_table_nearest: lookup_table_nearest,
+            lookup_table_dithered: lookup_table_dithered
         }
     }
 
@@ -209,15 +333,27 @@ impl ColorMapper {
         palette
     }
 
-    /*
-     * TODO: Add a corresponding get_dithered_color(position, x, y)
-     * We can use Yliluoma's algorithm. 4 color max, 8x8 Bayer matrix
-     * We'll precompute dither information (indexes of base colors + their proportions)
-     */
-    pub fn get_nearest_color(&self, value: f32) -> Color {
-        let index = (value.wrap()*(LOOKUP_TABLE_SIZE as f32)).floor() as usize % LOOKUP_TABLE_SIZE;
-        let palette_index = self.lookup_table[index];
-        self.palette[palette_index as usize]
+    pub fn get_nearest_color(&self, position: f32) -> Color {
+        if let Some(lookup_table) = self.lookup_table_nearest {
+            let float_index = (position.wrap()*(LOOKUP_TABLE_SIZE as f32)).floor();
+            let index = (float_index as usize) % LOOKUP_TABLE_SIZE;
+            let palette_index = lookup_table[index];
+            self.palette[palette_index as usize]
+        } else {
+            panic!("ColorMapper was configured with dithering on");
+        }
+    }
+
+    pub fn get_dithered_color(&self, position: f32, x: usize, y: usize) -> Color {
+        if let Some(lookup_table) = self.lookup_table_dithered {
+            let float_index = (position.wrap()*(LOOKUP_TABLE_SIZE as f32)).floor();
+            let index = (float_index as usize) % LOOKUP_TABLE_SIZE;
+            let dither_info = lookup_table[index];
+            let palette_index = dither_info.get_palette_index(x, y);
+            self.palette[palette_index]
+        } else {
+            panic!("ColorMapper was configured with dithering off");
+        }
     }
 
     pub fn get_palette(&self) -> Vec<Color> {
@@ -230,7 +366,7 @@ mod tests {
     use genetics::Gene;
     use gradient::{Color, LinearColor as LC};
     use gradient::ControlPoint;
-    use super::PaletteUtils;
+    use super::{DitherInfo, PaletteUtils};
 
     // Create a LinearColor with gamma-encoded u8 values
     fn new_gamma(r: u8, g: u8, b: u8) -> LC {
@@ -252,6 +388,49 @@ mod tests {
         let white = new_gamma(255, 255, 255);
         assert_eq!([black, white].average(), black.lerp(white, 0.5));
         assert_eq!([black, black, white].average(), black.lerp(white, 1.0/3.0));
+    }
+
+    #[test]
+    fn test_palette_utils_get_dither_info() {
+        let palette = [
+            LC::new(0, 0, 0),
+            LC::new(65535, 65535, 65535)
+        ];
+        let di = palette.get_dither_info(LC::new_f32(0.5, 0.5, 0.5));
+        assert_eq!(di.palette_indexes, [0, 1, 0, 0]);
+        assert_eq!(di.palette_proportions, [32, 32, 0, 0]);
+    }
+
+    #[test]
+    fn test_dither_info_get_palette_index() {
+        fn test_proportions(proportions: [u8; 4]) {
+            let d = DitherInfo {
+                palette_indexes: [0, 1, 2, 3],
+                palette_proportions: proportions
+            };
+            let mut counts = [0; 4];
+            for x in 0..8 {
+                for y in 0..8 {
+                    counts[d.get_palette_index(x, y)] += 1;
+                }
+            }
+            assert_eq!(proportions, counts, "Dithering did not produce expected proportions");
+        }
+
+        // Basic cases
+        test_proportions([16, 16, 16, 16]);
+        test_proportions([0, 32, 32, 0]);
+
+        // Solid colors
+        test_proportions([64, 0, 0, 0]);
+        test_proportions([0, 64, 0, 0]);
+        test_proportions([0, 0, 0, 64]);
+
+        // 1:63
+        test_proportions([1, 63, 0, 0]);
+        test_proportions([1, 0, 63, 0]);
+        test_proportions([63, 1, 0, 0]);
+        test_proportions([63, 0, 1, 0]);
     }
 
     #[test]
