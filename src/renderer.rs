@@ -2,7 +2,7 @@ use colormapper::ColorMapper;
 use fastmath::FastMath;
 use formulas::PlasmaFormulas;
 use genetics::Genome;
-use gradient::Color;
+use color::Color;
 use settings::RenderingSettings;
 use std::f32;
 

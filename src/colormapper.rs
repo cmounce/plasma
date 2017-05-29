@@ -1,6 +1,7 @@
+use color::{Color, LinearColor};
 use fastmath::FastMath;
 use genetics::{Chromosome, Gene};
-use gradient::{Color, ControlPoint, Gradient, LinearColor};
+use gradient::{ControlPoint, Gradient};
 use settings::RenderingSettings;
 use std::{cmp, f32, u16};
 
@@ -364,7 +365,7 @@ impl ColorMapper {
 #[cfg(test)]
 mod tests {
     use genetics::Gene;
-    use gradient::{Color, LinearColor as LC};
+    use color::{Color, LinearColor as LC};
     use gradient::ControlPoint;
     use super::{DitherInfo, PaletteUtils};
 

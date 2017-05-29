@@ -1,5 +1,5 @@
 use gif::{Encoder, Frame, SetParameter, Repeat};
-use gradient::Color;
+use color::Color;
 use renderer::{Image, PlasmaRenderer};
 use settings::{OutputMode, PlasmaSettings};
 use std::borrow::Cow;
