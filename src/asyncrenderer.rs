@@ -117,7 +117,7 @@ impl AsyncRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use colormapper::{CONTROL_POINT_GENE_SIZE, NUM_COLOR_GENES};
+    use color::colormapper::{CONTROL_POINT_GENE_SIZE, NUM_COLOR_GENES};
     use formulas::{FORMULA_GENE_SIZE, NUM_FORMULA_GENES};
     use genetics::{Chromosome, Genome};
     use renderer::{Image, PlasmaRenderer};

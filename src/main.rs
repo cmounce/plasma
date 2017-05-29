@@ -4,7 +4,6 @@ extern crate sdl2;
 
 mod asyncrenderer;
 mod color;
-mod colormapper;
 mod fastmath;
 mod file;
 mod formulas;
@@ -13,7 +12,7 @@ mod interactive;
 mod renderer;
 mod settings;
 
-use colormapper::{NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE};
+use color::colormapper::{NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE};
 use formulas::{NUM_FORMULA_GENES, FORMULA_GENE_SIZE};
 use getopts::{Matches, Options};
 use genetics::{Chromosome, Genome, Population};
