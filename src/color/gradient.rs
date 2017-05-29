@@ -1,5 +1,5 @@
 use fastmath::FastMath;
-use color::{Color, LinearColor};
+use super::{Color, LinearColor};
 
 #[derive(Copy,Clone,Debug)]
 pub struct ControlPoint {
@@ -7,17 +7,17 @@ pub struct ControlPoint {
     pub position: f32
 }
 
-#[derive(Debug)]
-pub struct Subgradient {
-    point1: ControlPoint,
-    point2: ControlPoint
-}
-
 pub struct Gradient {
     points: Vec<ControlPoint>
 }
 
-pub struct GradientIterator<'a> {
+#[derive(Debug)]
+struct Subgradient {
+    point1: ControlPoint,
+    point2: ControlPoint
+}
+
+struct GradientIterator<'a> {
     index1: usize, // start index: index2 is index1 + 1
     gradient: &'a Gradient
 }
@@ -82,15 +82,11 @@ impl Gradient {
 
     pub fn get_color(&self, position: f32) -> LinearColor {
         let pos = position.wrap();
-        let mut iter = self.iter();
-        let mut subgradient = iter.next().unwrap();
-        while !subgradient.contains(pos) {
-            subgradient = iter.next().unwrap();
-        }
-        subgradient.get_color(pos)
+        let subgradient = self.iter().find(|subgradient| subgradient.contains(pos)).unwrap();
+        return subgradient.get_color(pos);
     }
 
-    pub fn iter(&self) -> GradientIterator {
+    fn iter(&self) -> GradientIterator {
         GradientIterator {
             index1: self.points.len() - 1,
             gradient: &self

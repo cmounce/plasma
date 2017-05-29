@@ -1,7 +1,7 @@
 use color::{Color, LinearColor};
+use color::gradient::{ControlPoint, Gradient};
 use fastmath::FastMath;
 use genetics::{Chromosome, Gene};
-use gradient::{ControlPoint, Gradient};
 use settings::RenderingSettings;
 use std::{cmp, f32, u16};
 
@@ -366,7 +366,7 @@ impl ColorMapper {
 mod tests {
     use genetics::Gene;
     use color::{Color, LinearColor as LC};
-    use gradient::ControlPoint;
+    use color::gradient::ControlPoint;
     use super::{DitherInfo, PaletteUtils};
 
     // Create a LinearColor with gamma-encoded u8 values

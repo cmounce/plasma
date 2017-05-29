@@ -9,7 +9,6 @@ mod fastmath;
 mod file;
 mod formulas;
 mod genetics;
-mod gradient;
 mod interactive;
 mod renderer;
 mod settings;
