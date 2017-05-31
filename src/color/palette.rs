@@ -56,7 +56,16 @@ impl Palette {
     pub fn new(palette_size: usize, samples: &[LinearColor]) -> Palette {
         assert!(palette_size >= 2);
         assert!(palette_size <= u16::MAX as usize);
-        assert!(palette_size <= samples.len());
+
+        // Shortcut: if we're not reducing the number of colors, just use samples as our colors
+        if samples.len() <= palette_size {
+            let mut colors = Vec::with_capacity(palette_size);
+            colors.extend_from_slice(samples);
+            while colors.len() < palette_size {
+                colors.push(LinearColor::new(0, 0, 0));
+            }
+            return Palette { colors: colors };
+        }
 
         // Create an initial palette by subsampling the provided samples
         let mut palette = Palette {
@@ -229,6 +238,14 @@ mod tests {
     }
 
     #[test]
+    fn test_palette_new_few_samples() {
+        let palette = Palette::new(4, &[BLACK, WHITE]);
+        assert_eq!(palette.colors.len(), 4);
+        assert_eq!(palette.colors.iter().filter(|&&c| c == BLACK).count(), 3);
+        assert_eq!(palette.colors.iter().filter(|&&c| c == WHITE).count(), 1);
+    }
+
+    #[test]
     fn test_palette_get_dither_pattern() {
         let palette = Palette {
             colors: vec![BLACK, WHITE]
@@ -239,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dither_info_get_palette_index() {
+    fn test_dither_pattern_get_palette_index() {
         fn test_proportions(proportions: [u8; 4]) {
             let d = DitherPattern {
                 palette_indexes: [0, 1, 2, 3],
