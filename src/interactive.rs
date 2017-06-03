@@ -1,6 +1,8 @@
 use asyncrenderer::AsyncRenderer;
+use color::colormapper::{NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE};
 use fastmath::FastMath;
-use genetics::{Genome, Population};
+use formulas::{NUM_FORMULA_GENES, FORMULA_GENE_SIZE};
+use genetics::{Chromosome, Genome, Population};
 use sdl2;
 use sdl2::event::{Event, WindowEventId};
 use sdl2::keyboard::Keycode;
@@ -22,11 +24,27 @@ struct PlasmaState {
 }
 
 impl PlasmaState {
-    fn change_genome(&mut self, approve_current_genome: bool) {
-        if approve_current_genome {
-            self.population.add(self.current_genome.clone());
-        }
-        self.current_genome = self.population.breed();
+    fn approve_current_genome(&mut self) {
+        let old_genome = self.current_genome.clone();
+        self.population.add(old_genome);
+        let new_genome = self.population.breed();
+        self.set_genome(new_genome);
+    }
+
+    fn reject_current_genome(&mut self) {
+        let genome = self.population.breed();
+        self.set_genome(genome);
+    }
+
+    fn randomize_current_genome(&mut self) {
+        self.set_genome(Genome {
+            pattern: Chromosome::rand(NUM_FORMULA_GENES, FORMULA_GENE_SIZE),
+            color: Chromosome::rand(NUM_COLOR_GENES, CONTROL_POINT_GENE_SIZE)
+        });
+    }
+
+    fn set_genome(&mut self, genome: Genome) {
+        self.current_genome = genome;
         self.clock_instant = Instant::now(); // Reset the clock
         self.renderer.set_genome(&self.current_genome);
         self.renderer.render(self.width as usize, self.height as usize, 0.0);
@@ -69,7 +87,7 @@ pub fn run_interactive(settings: PlasmaSettings) {
         height: settings.rendering.height as u32
     };
 
-    // Start a async render on the current_genome
+    // Start an async render on the current_genome
     state.renderer.set_genome(&state.current_genome);
     state.renderer.render(state.width as usize, state.height as usize, 0.0);
 
@@ -119,15 +137,18 @@ pub fn run_interactive(settings: PlasmaSettings) {
                     match keycode {
                         // User approves current genome
                         Keycode::Equals | Keycode::Plus | Keycode::KpPlus => {
-                            state.change_genome(true);
+                            state.approve_current_genome();
                         }
                         // User rejects current genome
                         Keycode::Minus | Keycode::Underscore | Keycode::KpMinus => {
-                            state.change_genome(false);
+                            state.reject_current_genome();
                         }
                         // Export current genome
-                        Keycode::E => {
+                        Keycode::P => {
                             println!("{}", state.current_genome.to_base64());
+                        }
+                        Keycode::R => {
+                            state.randomize_current_genome();
                         }
                         _ => ()
                     }
