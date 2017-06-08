@@ -4,7 +4,7 @@ use fastmath::FastMath;
 use formulas::{NUM_FORMULA_GENES, FORMULA_GENE_SIZE};
 use genetics::{Chromosome, Genome, Population};
 use sdl2;
-use sdl2::event::{Event, WindowEventId};
+use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::Texture;
@@ -12,9 +12,9 @@ use settings::PlasmaSettings;
 use std::f32;
 use std::time::Instant;
 
-struct PlasmaState {
+struct PlasmaState<'a> {
     clock_instant: Instant,
-    current_texture: Texture,
+    current_texture: Texture<'a>,
     current_genome: Genome,
     frame_deadline_seconds: f64,
     population: Population,
@@ -23,7 +23,7 @@ struct PlasmaState {
     height: u32
 }
 
-impl PlasmaState {
+impl<'a> PlasmaState<'a> {
     fn approve_current_genome(&mut self) {
         let old_genome = self.current_genome.clone();
         self.population.add(old_genome);
@@ -66,14 +66,15 @@ pub fn run_interactive(settings: PlasmaSettings) {
         settings.rendering.width as u32,
         settings.rendering.height as u32
     ).resizable().build().unwrap();
-    let mut sdl_renderer = window.renderer().build().unwrap();
+    let mut canvas = window.into_canvas().present_vsync().build().unwrap();
+    let texture_creator = canvas.texture_creator();
     let mut event_pump = sdl.event_pump().unwrap();
 
     // Init screen to black via an initial 1x1 texture
-    let mut texture = sdl_renderer.create_texture_streaming(PixelFormatEnum::RGB24, 1, 1).unwrap();
+    let mut texture = texture_creator.create_texture_streaming(PixelFormatEnum::RGB24, 1, 1).unwrap();
     texture.update(None, &[0, 0, 0], 3).unwrap();
-    sdl_renderer.copy(&texture, None, None);
-    sdl_renderer.present();
+    canvas.copy(&texture, None, None).unwrap();
+    canvas.present();
 
     // Initialize plasma state
     let mut state = PlasmaState {
@@ -108,13 +109,13 @@ pub fn run_interactive(settings: PlasmaSettings) {
                 // Resize texture if necessary
                 let query = state.current_texture.query();
                 if (image.width, image.height) != (query.width as usize, query.height as usize) {
-                    state.current_texture = sdl_renderer.
+                    state.current_texture = texture_creator.
                         create_texture_streaming(PixelFormatEnum::RGB24, state.width, state.height).unwrap();
                 }
                 // Update texture, screen
                 state.current_texture.update(None, &image.pixel_data[..], image.width*3).unwrap();
-                sdl_renderer.copy(&state.current_texture, None, None);
-                sdl_renderer.present();
+                canvas.copy(&state.current_texture, None, None).unwrap();
+                canvas.present();
             }
         }
 
@@ -154,15 +155,13 @@ pub fn run_interactive(settings: PlasmaSettings) {
                     }
                 }
                 Event::Window {
-                    win_event_id: WindowEventId::Resized,
-                    data1: new_width,
-                    data2: new_height,
+                    win_event: WindowEvent::Resized(new_width, new_height),
                     ..
                 } => {
                     state.width = new_width as u32;
                     state.height = new_height as u32;
-                    sdl_renderer.copy(&state.current_texture, None, None);
-                    sdl_renderer.present();
+                    canvas.copy(&state.current_texture, None, None).unwrap();
+                    canvas.present();
                 }
                 Event::Quit { .. } => return,
                 _ => ()
