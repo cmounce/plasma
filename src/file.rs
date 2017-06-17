@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::Write;
 use std::ops::Range;
 
-pub fn output_gif(settings: PlasmaSettings) {
+pub fn output_gif(settings: PlasmaSettings) -> Result<(), String> {
     // Render all the frames at once
     let mut renderer = PlasmaRenderer::new(&settings.genetics.genome, &settings.rendering);
     let num_frames = (settings.rendering.frames_per_second*settings.rendering.loop_duration).
@@ -68,8 +68,13 @@ pub fn output_gif(settings: PlasmaSettings) {
         OutputMode::File{path} => path,
         _ => panic!("OutputMode must be File")
     };
-    let mut file = File::create(path).expect("Couldn't open file");
-    file.write_all(&gif_bytes[..]).expect("Couldn't write GIF data to file");
+    let mut file = try!(File::create(path).map_err(
+        |e| format!("Couldn't open file: {}", e)
+    ));
+    try!(file.write_all(&gif_bytes[..]).map_err(
+        |e| format!("Couldn't write GIF data to file: {}", e)
+    ));
+    Ok(())
 }
 
 fn encode_gif(indexed_frames: &[Vec<u8>], palette: &[Color],

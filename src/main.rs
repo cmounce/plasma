@@ -33,18 +33,19 @@ fn main() {
     let opts = create_options();
     let matches = match opts.parse(env::args()) {
         Ok(m) => m,
-        Err(e) => exit_with_error(&format!("{}", e))
+        Err(e) => exit_with_error(&format!("{}", e), true)
     };
     if matches.opt_present("help") {
         exit_with_help();
     }
     let params = match build_plasma_settings(matches) {
         Ok(params) => params,
-        Err(message) => exit_with_error(&message)
+        Err(message) => exit_with_error(&message, true)
     };
 
     match params.output.mode {
-        OutputMode::File{..} => file::output_gif(params),
+        OutputMode::File{..} => file::output_gif(params)
+            .unwrap_or_else(|e| exit_with_error(&e, false)),
         OutputMode::Interactive => interactive::run_interactive(params)
     };
 }
@@ -53,10 +54,12 @@ fn get_program_name() -> String {
     env::args().nth(0).unwrap_or("plasma".to_string())
 }
 
-fn exit_with_error(message: &str) -> ! {
+fn exit_with_error(message: &str, suggest_help: bool) -> ! {
     let program_name = get_program_name();
     errorln!("{program}: {message}", program = program_name, message = message);
-    errorln!("Run '{program} --help' for more information.", program = program_name);
+    if suggest_help {
+        errorln!("Run '{program} --help' for more information.", program = program_name);
+    }
     exit(1)
 }
 
