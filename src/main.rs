@@ -19,7 +19,8 @@ use genetics::{Chromosome, Genome, Population};
 use settings::{GeneticSettings, OutputMode, OutputSettings, PlasmaSettings, RenderingSettings};
 use std::cmp::max;
 use std::env;
-use std::io::Write;
+use std::fs::File;
+use std::io::{BufRead, BufReader, Write};
 use std::process::exit;
 
 const STARTING_POPULATION_SIZE: usize = 8;
@@ -84,11 +85,11 @@ fn create_options() -> Options {
     opts.optopt("p", "palette", "Render using a color palette of a given size", "N");
     opts.optopt("f", "fps", "Frames per second", "N");
     opts.optopt("l", "loop-duration", "Seconds until the animation loops", "N");
+    opts.optopt("i", "input", "Read genomes from file, one genome per line", "FILE");
     opts.optopt("o", "output", "Output to a file (GIF) instead of to a window", "FILE");
     opts.optopt("w", "width", "Width, in pixels", "X");
     opts.optopt("h", "height", "Height, in pixels", "Y");
     opts.optflag("", "help", "Show this help text");
-    // TODO: Add option for inputting genomes with a text file (one genome per line)
     opts
 }
 
@@ -101,6 +102,21 @@ fn build_plasma_settings(matches: Matches) -> Result<PlasmaSettings, String> {
             Ok(g) => genomes.push(g),
             Err(..) => return Err(format!("Couldn't parse {}", genome_string))
         };
+    }
+
+    // Read genomes from file
+    if let Some(filename) = matches.opt_str("i") {
+        let file = File::open(&filename).unwrap_or_else(
+            |e| exit_with_error(&format!("Couldn't open {}: {}", &filename, e), false)
+        );
+        for line_result in BufReader::new(file).lines() {
+            let line = line_result.unwrap_or_else(
+                |e| exit_with_error(&format!("Couldn't read line from {}: {}", &filename, e), false)
+            );
+            if let Ok(g) = Genome::from_base64(line.trim()) {
+                genomes.push(g);
+            }
+        }
     }
 
     // Set up genetic settings

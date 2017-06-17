@@ -64,15 +64,17 @@ pub fn output_gif(settings: PlasmaSettings) -> Result<(), String> {
     }
 
     // Actually output the gif
+    // TODO: Maybe this should be in main.rs, where all the other file I/O is?
     let path = match settings.output.mode {
         OutputMode::File{path} => path,
         _ => panic!("OutputMode must be File")
     };
-    let mut file = try!(File::create(path).map_err(
-        |e| format!("Couldn't open file: {}", e)
+    // TODO: Open file before calculating the GIF data, so invalid paths can be reported sooner
+    let mut file = try!(File::create(&path).map_err(
+        |e| format!("Couldn't open {}: {}", &path, e)
     ));
     try!(file.write_all(&gif_bytes[..]).map_err(
-        |e| format!("Couldn't write GIF data to file: {}", e)
+        |e| format!("Couldn't write GIF data to {}: {}", &path, e)
     ));
     Ok(())
 }
