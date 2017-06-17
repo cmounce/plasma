@@ -82,7 +82,6 @@ fn create_options() -> Options {
     opts.optopt("f", "fps", "Frames per second", "N");
     opts.optopt("l", "loop-duration", "Seconds until the animation loops", "N");
     opts.optopt("o", "output", "Output to a file (GIF) instead of to a window", "FILE");
-    opts.optflag("v", "verbose", "Print stats while running");
     opts.optopt("w", "width", "Width, in pixels", "X");
     opts.optopt("h", "height", "Height, in pixels", "Y");
     opts.optflag("", "help", "Show this help text");
@@ -127,8 +126,7 @@ fn build_plasma_settings(matches: Matches) -> Result<PlasmaSettings, String> {
         OutputMode::Interactive
     };
     let output_settings = OutputSettings {
-        mode: output_mode,
-        verbose: matches.opt_present("v")
+        mode: output_mode
     };
 
     // Set up rendering settings

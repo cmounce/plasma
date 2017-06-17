@@ -23,8 +23,7 @@ pub struct RenderingSettings {
 
 #[derive(Debug)]
 pub struct OutputSettings {
-    pub mode: OutputMode,
-    pub verbose: bool
+    pub mode: OutputMode
 }
 
 #[derive(Debug)]
