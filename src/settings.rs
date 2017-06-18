@@ -26,7 +26,7 @@ pub struct OutputSettings {
     pub mode: OutputMode
 }
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub enum OutputMode {
     File { path: String },
     Interactive

@@ -1,14 +1,12 @@
 use gif::{Encoder, Frame, SetParameter, Repeat};
 use color::Color;
 use renderer::{Image, PlasmaRenderer};
-use settings::{OutputMode, PlasmaSettings};
+use settings::PlasmaSettings;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::Write;
 use std::ops::Range;
 
-pub fn output_gif(settings: PlasmaSettings) -> Result<(), String> {
+pub fn generate_gif_bytes(settings: PlasmaSettings) -> Vec<u8> {
     // Render all the frames at once
     let mut renderer = PlasmaRenderer::new(&settings.genetics.genome, &settings.rendering);
     let num_frames = (settings.rendering.frames_per_second*settings.rendering.loop_duration).
@@ -63,20 +61,8 @@ pub fn output_gif(settings: PlasmaSettings) -> Result<(), String> {
         }
     }
 
-    // Actually output the gif
-    // TODO: Maybe this should be in main.rs, where all the other file I/O is?
-    let path = match settings.output.mode {
-        OutputMode::File{path} => path,
-        _ => panic!("OutputMode must be File")
-    };
-    // TODO: Open file before calculating the GIF data, so invalid paths can be reported sooner
-    let mut file = try!(File::create(&path).map_err(
-        |e| format!("Couldn't open {}: {}", &path, e)
-    ));
-    try!(file.write_all(&gif_bytes[..]).map_err(
-        |e| format!("Couldn't write GIF data to {}: {}", &path, e)
-    ));
-    Ok(())
+    // Return the smaller of the two encodings
+    gif_bytes
 }
 
 fn encode_gif(indexed_frames: &[Vec<u8>], palette: &[Color],

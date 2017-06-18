@@ -44,9 +44,15 @@ fn main() {
         Err(message) => exit_with_error(&message, true)
     };
 
-    match params.output.mode {
-        OutputMode::File{..} => file::output_gif(params)
-            .unwrap_or_else(|e| exit_with_error(&e, false)),
+    match params.output.mode.clone() {
+        OutputMode::File{ref path} => {
+            File::create(path).and_then(|mut file| {
+                let gif_bytes = file::generate_gif_bytes(params);
+                file.write_all(&gif_bytes[..])
+            }).unwrap_or_else(|e|
+                exit_with_error(&format!("Couldn't write to {}: {}", &path, e), false)
+            );
+        },
         OutputMode::Interactive => interactive::run_interactive(params)
     };
 }
@@ -104,19 +110,19 @@ fn build_plasma_settings(matches: Matches) -> Result<PlasmaSettings, String> {
         };
     }
 
-    // Read genomes from file
+    // Read additional genomes from file
     if let Some(filename) = matches.opt_str("i") {
-        let file = File::open(&filename).unwrap_or_else(
-            |e| exit_with_error(&format!("Couldn't open {}: {}", &filename, e), false)
-        );
-        for line_result in BufReader::new(file).lines() {
-            let line = line_result.unwrap_or_else(
-                |e| exit_with_error(&format!("Couldn't read line from {}: {}", &filename, e), false)
-            );
-            if let Ok(g) = Genome::from_base64(line.trim()) {
-                genomes.push(g);
+        File::open(&filename).and_then(|file| {
+            for line_result in BufReader::new(file).lines() {
+                let line = line_result?;
+                if let Ok(g) = Genome::from_base64(line.trim()) {
+                    genomes.push(g);
+                }
             }
-        }
+            Ok(())
+        }).unwrap_or_else(
+            |e| exit_with_error(&format!("Couldn't read from {}: {}", &filename, e), false)
+        );
     }
 
     // Set up genetic settings
