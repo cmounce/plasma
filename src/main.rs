@@ -145,8 +145,8 @@ fn build_plasma_settings(matches: Matches) -> Result<PlasmaSettings, String> {
     };
 
     // Set up output settings
-    let output_mode = if matches.opt_present("o") {
-        OutputMode::File { path: matches.opt_str("o").unwrap() }
+    let output_mode = if let Some(path) = matches.opt_str("o") {
+        OutputMode::File { path }
     } else {
         OutputMode::Interactive
     };
@@ -179,42 +179,36 @@ fn build_plasma_settings(matches: Matches) -> Result<PlasmaSettings, String> {
             rendering_settings.palette_size = Some(255);
         }
     }
-    if matches.opt_present("f") {
-        let fps_str = matches.opt_str("f").unwrap();
+    if let Some(fps_str) = matches.opt_str("f") {
         rendering_settings.frames_per_second = match fps_str.parse() {
             Ok(f) if f > 0.0 => f,
             _ => return Err(format!("Not a positive number: {}", fps_str))
         };
     }
-    if matches.opt_present("l") {
-        let loop_duration_str = matches.opt_str("l").unwrap();
+    if let Some(loop_duration_str) = matches.opt_str("l") {
         rendering_settings.loop_duration = match loop_duration_str.parse() {
             Ok(n) if n > 0.0 => n,
             _ => return Err(format!("Not a positive number: {}", loop_duration_str))
         };
     }
-    if matches.opt_present("p") {
-        let palette_size_str = matches.opt_str("p").unwrap();
+    if let Some(palette_size_str) = matches.opt_str("p") {
         // TODO: Add support for 256 colors
         rendering_settings.palette_size = match palette_size_str.parse() {
             Ok(n) if 2 <= n && n <= 255 => Some(n),
             _ => return Err(format!("Not an integer from 2 to 255: {}", palette_size_str))
         };
     }
-    if matches.opt_present("w") || matches.opt_present("h") {
-        if !matches.opt_present("w") || !matches.opt_present("h") {
-            return Err("Width and height must both be specified".to_string());
-        }
-        let width_str = matches.opt_str("w").unwrap();
+    if let (Some(width_str), Some(height_str)) = (matches.opt_str("w"), matches.opt_str("h")) {
         rendering_settings.width = match width_str.parse() {
             Ok(w) if w > 0 => w,
             _ => return Err(format!("Not a positive integer: {}", width_str))
         };
-        let height_str = matches.opt_str("h").unwrap();
         rendering_settings.height = match height_str.parse() {
             Ok(h) if h > 0 => h,
             _ => return Err(format!("Not a positive integer: {}", height_str))
         };
+    } else if matches.opt_present("w") != matches.opt_present("h") {
+        return Err("Width and height must both be specified".to_string());
     }
 
     Ok(PlasmaSettings {
