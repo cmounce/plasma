@@ -1,3 +1,4 @@
+extern crate cgmath;
 extern crate getopts;
 extern crate gif;
 extern crate sdl2;

@@ -1,4 +1,4 @@
-use fastmath::FastMath;
+use cgmath::Vector3;
 
 const GAMMA: f32 = 2.2;
 
@@ -44,18 +44,20 @@ impl LinearColor {
 
     // Create a LinearColor with floats in the range [0.0, 1.0]
     pub fn new_f32(r: f32, g: f32, b: f32) -> LinearColor {
-        /*
-         * Note that to_component() uses (f*MAX+1).floor() instead of (f*MAX).round().
-         *
-         * For each u16 output, there is a range of f32 inputs that will produce that
-         * output. Using floor() ensures that these input ranges are all the same size.
-         *
-         * Contrast with what would happen if we used round(). Inputs in the range [0.0, 0.5)
-         * would map to 0, whereas inputs in the twice-as-large [0.5, 1.5) would map to 1.
-         * Similarly, twice as many inputs would produce 65534 compared to 65535.
-         */
-        let to_component = |f: f32| (f*65536.0).floor().clamp(0.0, 65535.0) as u16;
+        let to_component = |f: f32| (f*65535.0).round() as u16;
         LinearColor::new(to_component(r), to_component(g), to_component(b))
+    }
+
+    pub fn new_vec3(v: &Vector3<f32>) -> LinearColor {
+        LinearColor::new_f32(v.x, v.y, v.z)
+    }
+
+    pub fn to_vec3(&self) -> Vector3<f32> {
+        Vector3 {
+            x: self.r as f32,
+            y: self.g as f32,
+            z: self.b as f32
+        } / 65535.0
     }
 
     fn component_to_linear(c: u8) -> u16 {
@@ -101,53 +103,63 @@ impl LinearColor {
 
     pub fn lerp(&self, other: LinearColor, position: f32) -> LinearColor {
         assert!(position >= 0.0 && position <= 1.0);
-        LinearColor::new_f32(
-            (self.r as f32).lerp(other.r as f32, position)/65535.0,
-            (self.g as f32).lerp(other.g as f32, position)/65535.0,
-            (self.b as f32).lerp(other.b as f32, position)/65535.0
-        )
+        let anti_position = 1.0 - position;
+        let lerp = |a, b| ((a as f32)*anti_position + (b as f32)*position).round() as u16;
+        LinearColor {
+            r: lerp(self.r, other.r),
+            g: lerp(self.g, other.g),
+            b: lerp(self.b, other.b),
+        }
     }
 }
 
 
 #[cfg(test)]
 mod tests {
+    use std::u16;
     use super::{Color, LinearColor};
 
     #[test]
-    fn test_linear_color_new_f32() {
-        let black =         LinearColor::new(0, 0, 0);
-        let almost_black =  LinearColor::new(1, 0, 0);
-        let almost_red =    LinearColor::new(65534, 0, 0);
-        let red =           LinearColor::new(65535, 0, 0);
-
-        // There are 65536 possible u16 values.
-        // Divide the range [0.0, 1.0] into 65536 ranges of equal size.
-        let range_size = 1.0/65536.0;
-
-        // Check rounding behavior at bottom
-        let new_f32_r = |r: f32| LinearColor::new_f32(r, 0.0, 0.0);
-        let a_little_bit = range_size/100.0;
-        assert_eq!(black,           new_f32_r(0.0));
-        assert_eq!(black,           new_f32_r(range_size - a_little_bit));
-        assert_eq!(almost_black,    new_f32_r(range_size));
-        assert_eq!(almost_black,    new_f32_r(2.0*range_size - a_little_bit));
-
-        // Check rounding behavior at top
-        assert_eq!(almost_red,  new_f32_r(1.0 - 2.0*range_size + a_little_bit));
-        assert_eq!(almost_red,  new_f32_r(1.0 - range_size - a_little_bit));
-        assert_eq!(red,         new_f32_r(1.0 - range_size + a_little_bit));
-        assert_eq!(red,         new_f32_r(1.0));
-    }
-
-    #[test]
     fn test_linear_color_lerp() {
+        // Test a basic color fade
         let a = LinearColor::new_f32(1.0, 0.0, 0.0);
         let b = LinearColor::new_f32(0.5, 0.5, 0.0);
         let c = LinearColor::new_f32(0.0, 1.0, 0.0);
         assert_eq!(a, a.lerp(c, 0.0));
         assert_eq!(b, a.lerp(c, 0.5));
         assert_eq!(c, a.lerp(c, 1.0));
+
+        // Test rounding behavior
+        let black = LinearColor::new(0, 0, 0);
+        let dark_blue = LinearColor::new(0, 0, 2);
+        let darker_blue = LinearColor::new(0, 0, 1);
+        /*
+         * When rounding, we want the most extreme colors to get half the space:
+         *
+         *   black    darker_blue   dark_blue
+         * +-------+---------------+-------+
+         * 0      0.25            0.75     1
+         *
+         * This is because in a multi-color gradient, the end of one color fade is always
+         * the start of the next color fade, and so the extreme colors will appear twice.
+         * But because they only get half the space, it all balances out.
+         *
+         * Is this important in the grand scheme of things? Probably not.
+         */
+        assert_eq!(black.lerp(dark_blue, 0.24), black);
+        assert_eq!(black.lerp(dark_blue, 0.26), darker_blue);
+        assert_eq!(black.lerp(dark_blue, 0.74), darker_blue);
+        assert_eq!(black.lerp(dark_blue, 0.76), dark_blue);
+    }
+
+    #[test]
+    fn test_linear_color_new_vec3() {
+        let values = [0, 1, u16::MAX - 1, u16::MAX];
+        for &value in values.iter() {
+            let lc = LinearColor::new(value, value, value);
+            let v = lc.to_vec3();
+            assert_eq!(lc, LinearColor::new_vec3(&v));
+        }
     }
 
     #[test]

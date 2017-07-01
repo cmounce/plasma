@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Chris Mounce <christophermounce@gmail.com>"]
 
 [dependencies]
+cgmath = "0.14.1"
 getopts = "0.2"
 gif = "0.9"
 rand = "0.3"

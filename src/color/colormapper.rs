@@ -159,6 +159,8 @@ impl ColorMapper {
 #[cfg(test)]
 mod tests {
     use genetics::Gene;
+    use cgmath::Vector3;
+    use cgmath::prelude::*;
     use color::{Color, LinearColor as LC};
     use color::gradient::ControlPoint;
 
@@ -185,6 +187,16 @@ mod tests {
         assert_eq!(LC::from_hsl(1.0,     1.0, 0.5), new_gamma(255, 0,   0));
 
         // Test in-between colors
+        macro_rules! assert_close {
+            ($a:expr, $b:expr) => (
+                {
+                    let a: LC = $a;
+                    let b: LC = $b;
+                    let diff: Vector3<f32> = a.to_vec3() - b.to_vec3();
+                    assert!(diff.magnitude() < 0.01, "assertion failed: {:?} != {:?}", a, b);
+                }
+            );
+        }
         let num_iter = 3*6;
         for i in 0..num_iter {
             let hue = i as f32/num_iter as f32;
@@ -192,7 +204,7 @@ mod tests {
             let offset = (6.0*hue).fract();
             let previous = LC::from_hsl(sector/6.0, 1.0, 0.5);
             let next = LC::from_hsl((sector + 1.0)/6.0, 1.0, 0.5);
-            assert_eq!(LC::from_hsl(hue, 1.0, 0.5), previous.lerp(next, offset));
+            assert_close!(LC::from_hsl(hue, 1.0, 0.5), previous.lerp(next, offset));
         }
 
         // Test black, gray (gamma-correct), white
@@ -207,9 +219,9 @@ mod tests {
 
         // Test saturation
         let red = new_gamma(255, 0, 0);
-        assert_eq!(LC::from_hsl(0.0, 0.25, 0.5), gray.lerp(red, 0.25));
-        assert_eq!(LC::from_hsl(0.0, 0.5,  0.5), gray.lerp(red, 0.5));
-        assert_eq!(LC::from_hsl(0.0, 0.75, 0.5), gray.lerp(red, 0.75));
+        assert_close!(LC::from_hsl(0.0, 0.25, 0.5), gray.lerp(red, 0.25));
+        assert_close!(LC::from_hsl(0.0, 0.5,  0.5), gray.lerp(red, 0.5));
+        assert_close!(LC::from_hsl(0.0, 0.75, 0.5), gray.lerp(red, 0.75));
     }
 
     #[test]
