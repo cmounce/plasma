@@ -1,6 +1,7 @@
 extern crate cgmath;
 extern crate getopts;
 extern crate gif;
+extern crate ordered_float;
 extern crate sdl2;
 
 mod asyncrenderer;

@@ -109,7 +109,7 @@ impl ColorMapper {
 
         // Build a palette from the gradient samples
         let palette_size = settings.palette_size.unwrap_or(LOOKUP_TABLE_SIZE);
-        let palette = Palette::new(palette_size, &gradient_samples);
+        let palette = Palette::new(palette_size, &gradient_samples, settings.dithering);
 
         // Use the samples and the palette to build lookup tables
         let mut lookup_table_nearest = vec![];

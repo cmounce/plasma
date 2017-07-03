@@ -5,6 +5,7 @@ dependencies = [
  "cgmath 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "getopts 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "gif 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ordered-float 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
  "sdl2 0.30.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -97,6 +98,15 @@ version = "0.1.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "ordered-float"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "num-traits 0.1.37 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unreachable 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "rand"
 version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -130,6 +140,19 @@ dependencies = [
  "libc 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
+[[package]]
+name = "unreachable"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "void"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
 [metadata]
 "checksum approx 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "08abcc3b4e9339e33a3d0a5ed15d84a687350c05689d825e0f6655eef9e76a94"
 "checksum bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aad18937a628ec6abcd26d1489012cc0e18c21798210f491af69ded9b881106d"
@@ -144,7 +167,10 @@ dependencies = [
 "checksum num-integer 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)" = "ef1a4bf6f9174aa5783a9b4cc892cacd11aebad6c69ad027a0b65c6ca5f8aa37"
 "checksum num-iter 0.1.33 (registry+https://github.com/rust-lang/crates.io-index)" = "f7d1891bd7b936f12349b7d1403761c8a0b85a18b148e9da4429d5d102c1a41e"
 "checksum num-traits 0.1.37 (registry+https://github.com/rust-lang/crates.io-index)" = "e1cbfa3781f3fe73dc05321bed52a06d2d491eaa764c52335cf4399f046ece99"
+"checksum ordered-float 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "58d25b6c0e47b20d05226d288ff434940296e7e2f8b877975da32f862152241f"
 "checksum rand 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "022e0636ec2519ddae48154b028864bdce4eaf7d35226ab8e65c611be97b189d"
 "checksum rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)" = "dcf128d1287d2ea9d80910b5f1120d0b8eede3fbf1abe91c40d39ea7d51e6fda"
 "checksum sdl2 0.30.0 (registry+https://github.com/rust-lang/crates.io-index)" = "63066036ad426250ac56d23e38fd05063b38b661556acd596f4046cc92d98415"
 "checksum sdl2-sys 0.30.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b48638b7882759f3421038fcd38ad5f1ea19b119d80c99f1601933004629e34d"
+"checksum unreachable 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1f2ae5ddb18e1c92664717616dd9549dde73f539f01bd7b77c2edb2446bdff91"
+"checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"

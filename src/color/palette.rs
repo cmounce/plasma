@@ -1,4 +1,8 @@
+use cgmath::Vector3;
+use cgmath::prelude::*;
+use ordered_float::OrderedFloat;
 use std::{cmp, u16};
+use std::collections::HashSet;
 use std::ops::Index;
 use super::LinearColor;
 
@@ -53,7 +57,7 @@ impl LinearColor {
 
 impl Palette {
     // Generate an optimized palette based on the provided color samples
-    pub fn new(palette_size: usize, samples: &[LinearColor]) -> Palette {
+    pub fn new(palette_size: usize, samples: &[LinearColor], maximize_range: bool) -> Palette {
         assert!(palette_size >= 2);
         assert!(palette_size <= u16::MAX as usize);
 
@@ -77,6 +81,47 @@ impl Palette {
             palette.colors.push(samples[subsample_index]);
         }
 
+        // Pin the outermost palette entries to the edges of the color space
+        let pinned_palette_indexes: HashSet<usize> = if maximize_range {
+            // Calculate repelling forces among palette entries
+            let palette_vectors: Vec<_> = palette.colors.iter().map(|c| c.to_vec3()).collect();
+            let repelling_forces: Vec<Vector3<f32>> = palette_vectors.iter().map(|color| {
+                let raw_deltas = palette_vectors.iter().map(|other_color| color - other_color);
+                let scaled_forces = raw_deltas.map(|raw| {
+                    let mag2 = raw.magnitude2();
+                    let scale = mag2*mag2; // Repelling force = 1/(distance**3)
+                    if scale > 0.0 {
+                        raw/scale
+                    } else {
+                        raw
+                    }
+                });
+                scaled_forces.sum()
+            }).collect();
+
+            // Figure out which palette indexes are on the outside of the color space
+            let outside_palette_indexes: HashSet<_> = repelling_forces.iter().enumerate().filter_map(|(i, force)| {
+                let color = palette_vectors[i];
+                if palette_vectors.iter().any(|other_color| force.dot(other_color - color) > 0.0) {
+                    None
+                } else {
+                    Some(i)
+                }
+            }).collect();
+
+            // Update the outside palette entries to be the most extreme sample
+            for &palette_index in outside_palette_indexes.iter() {
+                let force = repelling_forces[palette_index];
+                palette.colors[palette_index] = *samples.iter().max_by_key(|sample| {
+                    OrderedFloat(sample.to_vec3().dot(force))
+                }).unwrap();
+            }
+
+            outside_palette_indexes
+        } else {
+            HashSet::new()
+        };
+
         // Optimize the palette by doing k-means clustering on the samples.
         // Each of the k means will become a color in the optimized palette.
         let mut palette_updated = true;
@@ -91,7 +136,7 @@ impl Palette {
             // Replace each palette color with the average of its corresponding sample group
             palette_updated = false;
             for (palette_index, nearest_samples) in palette_index_to_samples.iter().enumerate() {
-                if nearest_samples.len() > 0 {
+                if nearest_samples.len() > 0 && !pinned_palette_indexes.contains(&palette_index) {
                     let average = LinearColor::average(nearest_samples);
                     if palette.colors[palette_index] != average {
                         palette.colors[palette_index] = average;
@@ -231,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_palette_new() {
-        let palette = Palette::new(2, &[BLACK, BLACK, WHITE, WHITE]);
+        let palette = Palette::new(2, &[BLACK, BLACK, WHITE, WHITE], false);
         assert_eq!(palette.colors.len(), 2);
         assert!(palette.colors.contains(&BLACK));
         assert!(palette.colors.contains(&WHITE));
@@ -239,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_palette_new_few_samples() {
-        let palette = Palette::new(4, &[BLACK, WHITE]);
+        let palette = Palette::new(4, &[BLACK, WHITE], false);
         assert_eq!(palette.colors.len(), 4);
         assert_eq!(palette.colors.iter().filter(|&&c| c == BLACK).count(), 3);
         assert_eq!(palette.colors.iter().filter(|&&c| c == WHITE).count(), 1);
