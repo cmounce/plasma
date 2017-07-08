@@ -1,6 +1,7 @@
 use color::{Color, LinearColor};
 use color::gradient::{ControlPoint, Gradient};
-use color::palette::{DitherPattern, Palette};
+use color::palette::Palette;
+use color::palette::dither::DitherPattern;
 use fastmath::FastMath;
 use genetics::{Chromosome, Gene};
 use settings::RenderingSettings;
